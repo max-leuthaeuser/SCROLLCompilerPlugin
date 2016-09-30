@@ -1,0 +1,4 @@
+<plugin>
+  <name>SCROLLCompilerPlugin</name>
+  <classname>scroll.internal.SCROLLCompilerPlugin</classname>
+</plugin>
