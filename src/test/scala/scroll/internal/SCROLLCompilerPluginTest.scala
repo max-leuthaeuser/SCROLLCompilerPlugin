@@ -1,39 +1,68 @@
 package scroll.internal
 
-import org.scalatest.{ WordSpec, Matchers }
+import org.scalatest.{WordSpec, Matchers}
 
 class SCROLLCompilerPluginTest extends WordSpec with Matchers {
 
-  "the local method" should {
-    "evaluate the second parameter list with each value in the first parameter list declared implicitly" in {
-      val result = imply(42) { implicitly[Int] }
-      result shouldBe 42
-    }
+  case class SomePlayer() {
+    def hello(): String = "Hello"
+  }
 
-    "support multiple implicits" in {
-      val result = imply(42, "hi") { (implicitly[Int], implicitly[String]) }
-      result shouldBe (42, "hi")
-    }
+  case class SomeRole() {
+    val value: Int = 0
 
-    "allow support simple syntax for selecting non-default type class instances" in {
-      trait Semigroup[A] { def combine(x: A, y: A): A }
-      object Semigroup {
-        implicit val intAddition: Semigroup[Int] = new Semigroup[Int] { def combine(x: Int, y: Int) = x + y }
-         val intMultiplication: Semigroup[Int] = new Semigroup[Int] { def combine(x: Int, y: Int) = x * y }
+    def world(): String = "World"
+
+    def bla(param: String): String = world() + param
+  }
+
+  "the plugin" should {
+    "detect applyDynamic" in {
+      new Compartment {
+
+        val p = SomePlayer()
+        val r = SomeRole()
+
+        val c = p play r
+
+        val _: String = c.world()
       }
-      implicit class SemigroupOps[A](val lhs: A)(implicit sg: Semigroup[A]) {
-        def |+|(rhs: A): A = sg.combine(lhs, rhs)
-      }
-
-      (2 |+| 5) shouldBe 7
-      imply(Semigroup.intMultiplication) { (2 |+| 5) } shouldBe 10
     }
 
-    "not support overriding an implicit declared in the same scope as the expression" in {
-      """
-      implicit val x = 1
-      imply(42) { implicitly[Int] }
-      """ shouldNot compile
+    "detect applyDynamicNamed" in {
+      new Compartment {
+
+        val p = SomePlayer()
+        val r = SomeRole()
+
+        val c = p play r
+
+        val _: String = c.bla(param = "!")
+      }
+    }
+
+    "detect selectDynamic" in {
+      new Compartment {
+
+        val p = SomePlayer()
+        val r = SomeRole()
+
+        val c = p play r
+
+        val _: Int = c.value
+      }
+    }
+
+    "detect updateDynamic" in {
+      new Compartment {
+
+        val p = SomePlayer()
+        val r = SomeRole()
+
+        val c = p play r
+
+        c.value = 10
+      }
     }
   }
 }
