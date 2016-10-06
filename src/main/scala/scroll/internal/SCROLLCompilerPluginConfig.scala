@@ -15,7 +15,6 @@ import scroll.internal.formal.FormalCROM
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-// TODO: fix SCROLL for loading the model files and replace this stuff by the original SCROLL functionality
 class SCROLLCompilerPluginConfig() {
   private val NATURALTYPE = "NaturalType"
   private val ROLETYPE = "RoleType"
@@ -128,7 +127,6 @@ class SCROLLCompilerPluginConfig() {
   private def constructRel[RST >: Null, RT >: Null](elem: EObject): (RST, List[RT]) = {
     val rstName = getInstanceName(elem).asInstanceOf[RST]
     val roles = collectRoles(elem.eContainer())
-    // TODO: make sure order of roles (incoming/outgoing) is correct for the given relationship
     val rsts = roles.filter(role => {
       val incoming = role.asInstanceOf[DynamicEObjectImpl].dynamicGet(1).asInstanceOf[EcoreEList[DynamicEObjectImpl]]
       val inCond = incoming match {

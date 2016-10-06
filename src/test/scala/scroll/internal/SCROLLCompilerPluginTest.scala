@@ -4,11 +4,11 @@ import org.scalatest.{WordSpec, Matchers}
 
 class SCROLLCompilerPluginTest extends WordSpec with Matchers {
 
-  case class SomePlayer() {
+  case class Account() {
     def hello(): String = "Hello"
   }
 
-  case class SomeRole() {
+  case class Target() {
     val value: Int = 0
 
     def world(): String = "World"
@@ -20,8 +20,8 @@ class SCROLLCompilerPluginTest extends WordSpec with Matchers {
     "detect applyDynamic" in {
       new Compartment {
 
-        val p = SomePlayer()
-        val r = SomeRole()
+        val p = Account()
+        val r = Target()
 
         val c = p play r
 
@@ -29,11 +29,23 @@ class SCROLLCompilerPluginTest extends WordSpec with Matchers {
       }
     }
 
+    "detect applyDynamic and detect non-existing behavior" in {
+      new Compartment {
+
+        val p = Account()
+        val r = Target()
+
+        val c = p play r
+
+        val _: String = c.NOworld()
+      }
+    }
+
     "detect applyDynamicNamed" in {
       new Compartment {
 
-        val p = SomePlayer()
-        val r = SomeRole()
+        val p = Account()
+        val r = Target()
 
         val c = p play r
 
@@ -44,8 +56,8 @@ class SCROLLCompilerPluginTest extends WordSpec with Matchers {
     "detect selectDynamic" in {
       new Compartment {
 
-        val p = SomePlayer()
-        val r = SomeRole()
+        val p = Account()
+        val r = Target()
 
         val c = p play r
 
@@ -56,8 +68,8 @@ class SCROLLCompilerPluginTest extends WordSpec with Matchers {
     "detect updateDynamic" in {
       new Compartment {
 
-        val p = SomePlayer()
-        val r = SomeRole()
+        val p = Account()
+        val r = Target()
 
         val c = p play r
 
