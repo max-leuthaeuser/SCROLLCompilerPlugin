@@ -24,7 +24,6 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
   private val SelectDynamic = TermName("selectDynamic")
   private val UpdateDynamic = TermName("updateDynamic")
   private val ApplyDynamicNamed = TermName("applyDynamicNamed")
-
   private val Wrapped = TermName("wrapped")
 
   private val nameMapping = mutable.Map.empty[String, String]
@@ -57,7 +56,7 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
     def apply(unit: CompilationUnit) {
       // find all player classes:
       new ForeachTreeTraverser(findPlayer).traverse(unit.body)
-      // handle calls to Dynamic Trait
+      // handle calls to Dynamic Trait:
       new ForeachTreeTraverser(handleDynamics).traverse(unit.body)
     }
   }
@@ -75,33 +74,25 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
 
   private def getRoles(p: String): List[String] = config.getPlays.filter { case (c, r) => c == p } map (_._2)
 
+  private def logDynamics(t: Tree, dyn: Name, name: Tree): Unit = {
+    val pt = getPlayerType(t)
+    val pc = playerMapping(pt)
+    val rcs = getRoles(pt).map(r => playerMapping.getOrElse(r, null)).filter(_ != null)
+    val b = nameMapping(name.toString)
+    val hasB = (rcs :+ pc).exists(cl => hasBehavior(cl, b))
+    showMessage(t.pos, s"$dyn detected on: $pt.\n\tFor that player the following roles are specified in ${config.modelFile}:\n\t${getRoles(pt).mkString(", ")}")
+    if (!hasB) {
+      showMessage(name.pos, s"Neither $pt, nor its allowed roles specified in ${config.modelFile} offer the called behavior!\n\tThis may indicate a programming error!")
+    }
+  }
+
   private def handleDynamics(tree: Tree): Unit = tree match {
     case ValDef(_, name, _, Literal(Constant(v))) =>
       nameMapping(name.toString) = v.toString
-    case Apply(Select(t, dyn), List(name))
-      if dyn == UpdateDynamic =>
-      val pt = getPlayerType(t)
-      val pc = playerMapping(pt)
-      val rcs = getRoles(pt).map(r => playerMapping.getOrElse(r, null)).filter(_ != null)
-      val b = nameMapping(name.toString)
-      val hasB = (rcs :+ pc).exists(cl => hasBehavior(cl, b))
-      showMessage(t.pos, s"$dyn detected on: $pt with roles: ${getRoles(pt).mkString(", ")}")
-      if (!hasB) {
-        showMessage(name.pos, s"Neither $pt, nor its allowed roles specified in ${config.modelFile} offer the called behavior!")
-      }
-    case Apply(TypeApply(Select(t, dyn), _), List(name))
-      if dyn == ApplyDynamic ||
-        dyn == SelectDynamic ||
-        dyn == ApplyDynamicNamed =>
-      val pt = getPlayerType(t)
-      val pc = playerMapping(pt)
-      val rcs = getRoles(pt).map(r => playerMapping.getOrElse(r, null)).filter(_ != null)
-      val b = nameMapping(name.toString)
-      val hasB = (rcs :+ pc).exists(cl => hasBehavior(cl, b))
-      showMessage(t.pos, s"$dyn detected on: $pt with roles: ${getRoles(pt).mkString(", ")}")
-      if (!hasB) {
-        showMessage(name.pos, s"Neither $pt, nor its allowed roles specified in ${config.modelFile} offer the called behavior!")
-      }
+    case Apply(Select(t, dyn), List(name)) if dyn == UpdateDynamic =>
+      logDynamics(t, dyn, name)
+    case Apply(TypeApply(Select(t, dyn), _), List(name)) if dyn == ApplyDynamic || dyn == SelectDynamic || dyn == ApplyDynamicNamed =>
+      logDynamics(t, dyn, name)
     case _ => ()
   }
 }
