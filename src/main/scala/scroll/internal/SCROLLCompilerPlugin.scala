@@ -85,7 +85,7 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
       val rcs = getRoles(pt).map(r => playerMapping.getOrElse(r, null)).filter(_ != null)
       val b = nameMapping(name.toString)
       val hasB = (rcs :+ pc).exists(cl => hasBehavior(cl, b))
-      showMessage(t.pos, s"$dyn detected on: $pt with roles: ${getRoles(pt)}")
+      showMessage(t.pos, s"$dyn detected on: $pt with roles: ${getRoles(pt).mkString(", ")}")
       if (!hasB) {
         showMessage(name.pos, s"Neither $pt, nor its allowed roles specified in ${config.modelFile} offer the called behavior!")
       }
@@ -98,7 +98,7 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
       val rcs = getRoles(pt).map(r => playerMapping.getOrElse(r, null)).filter(_ != null)
       val b = nameMapping(name.toString)
       val hasB = (rcs :+ pc).exists(cl => hasBehavior(cl, b))
-      showMessage(t.pos, s"$dyn detected on: $pt with roles: ${getRoles(pt)}")
+      showMessage(t.pos, s"$dyn detected on: $pt with roles: ${getRoles(pt).mkString(", ")}")
       if (!hasB) {
         showMessage(name.pos, s"Neither $pt, nor its allowed roles specified in ${config.modelFile} offer the called behavior!")
       }

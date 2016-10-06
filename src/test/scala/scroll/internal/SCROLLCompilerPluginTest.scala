@@ -1,6 +1,6 @@
 package scroll.internal
 
-import org.scalatest.{WordSpec, Matchers}
+import org.scalatest.{Matchers, WordSpec}
 
 class SCROLLCompilerPluginTest extends WordSpec with Matchers {
 
@@ -37,7 +37,9 @@ class SCROLLCompilerPluginTest extends WordSpec with Matchers {
 
         val c = p play r
 
-        val _: String = c.NOworld()
+        an[RuntimeException] should be thrownBy {
+          val _: String = c.NOworld()
+        }
       }
     }
 
