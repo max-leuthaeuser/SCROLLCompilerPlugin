@@ -62,7 +62,7 @@ class SCROLLCompilerPluginConfig() {
     val resourceSet = new ResourceSetImpl()
     registerMetaModel(resourceSet)
     resourceSet.getResourceFactoryRegistry.getExtensionToFactoryMap.put(Resource.Factory.Registry.DEFAULT_EXTENSION, new XMIResourceFactoryImpl())
-    val r = resourceSet.getResource(URI.createURI("archive:" + getClass.getClassLoader.getResource(modelFile).getPath, true), true)
+    val r = resourceSet.getResource(URI.createURI(modelFile), true)
 
     require(null != r)
     require(!r.getContents.isEmpty)

@@ -74,7 +74,9 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
 
   private def hasBehavior(c: ClassDef, m: String): Boolean = c.symbol.typeSignature.members.exists(_.name.encodedName.toString == m)
 
-  private def getRoles(p: String): List[String] = config.getPlays.filter { case (c, _) => c == p } map (_._2)
+  private def getRoles(p: String): List[String] =
+    config.getPlays.filter { case (c, _) => c == p }.map(_._2) ++
+      config.getPlays.filter { case (_, rl) => rl == p }.map(_._1)
 
   private def logDynamics(t: Tree, dyn: Name, name: Tree): Unit = {
     val pt = getPlayerType(t)
