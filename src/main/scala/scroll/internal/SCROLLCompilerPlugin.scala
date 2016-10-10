@@ -17,6 +17,8 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
 
   import global._
 
+  private val r = global.reporter
+
   val runsAfter = "typer" :: Nil
   val phaseName = "dynamictraitlookup"
 
@@ -41,8 +43,8 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
   def newPhase(prev: Phase): Phase = new TraverserPhase(prev)
 
   private def showMessage(pos: Position, m: String): Unit = config.compileTimeErrors match {
-    case true => globalError(pos, m)
-    case false => warning(pos, m)
+    case true => r.error(pos, m)
+    case false => r.warning(pos, m)
   }
 
   private def getPlayerType(t: Tree): String =
@@ -53,7 +55,7 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
     }.getOrElse("No player found!")
 
   private class TraverserPhase(prev: Phase) extends StdPhase(prev) {
-    def apply(unit: CompilationUnit) {
+    def apply(unit: CompilationUnit): Unit = {
       // find all player classes:
       new ForeachTreeTraverser(findPlayer).traverse(unit.body)
       // handle calls to Dynamic Trait:
@@ -80,7 +82,7 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
     val rcs = getRoles(pt).map(r => playerMapping.getOrElse(r, null)).filter(_ != null)
     val b = nameMapping(name.toString)
     val hasB = (rcs :+ pc).exists(cl => hasBehavior(cl, b))
-    showMessage(t.pos, s"$dyn detected on: $pt.\n\tFor that player the following roles are specified in ${config.modelFile}:\n\t${getRoles(pt).mkString(", ")}")
+    r.warning(t.pos, s"$dyn detected on: $pt.\n\tFor that player the following roles are specified in ${config.modelFile}:\n\t${getRoles(pt).mkString(", ")}")
     if (!hasB) {
       showMessage(name.pos, s"Neither $pt, nor its allowed roles specified in ${config.modelFile} offer the called behavior!\n\tThis may indicate a programming error!")
     }

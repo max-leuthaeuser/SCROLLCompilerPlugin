@@ -18,7 +18,7 @@ class SCROLLCompilerPluginTest extends WordSpec with Matchers {
 
   "the plugin" should {
     "detect applyDynamic" in {
-      new Compartment {
+      val _ = new Compartment {
 
         val p = Account()
         val r = Target()
@@ -30,7 +30,7 @@ class SCROLLCompilerPluginTest extends WordSpec with Matchers {
     }
 
     "detect applyDynamic and detect non-existing behavior" in {
-      new Compartment {
+      val _ = new Compartment {
 
         val p = Account()
         val r = Target()
@@ -44,7 +44,7 @@ class SCROLLCompilerPluginTest extends WordSpec with Matchers {
     }
 
     "detect applyDynamicNamed" in {
-      new Compartment {
+      val _ = new Compartment {
 
         val p = Account()
         val r = Target()
@@ -56,7 +56,7 @@ class SCROLLCompilerPluginTest extends WordSpec with Matchers {
     }
 
     "detect selectDynamic" in {
-      new Compartment {
+      val _ = new Compartment {
 
         val p = Account()
         val r = Target()
@@ -68,7 +68,7 @@ class SCROLLCompilerPluginTest extends WordSpec with Matchers {
     }
 
     "detect updateDynamic" in {
-      new Compartment {
+      val _ = new Compartment {
 
         val p = Account()
         val r = Target()
