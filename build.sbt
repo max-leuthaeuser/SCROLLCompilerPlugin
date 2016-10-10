@@ -53,12 +53,16 @@ scalacOptions in Test <++= (assembly in Compile) map {
   pluginJar => Seq("-Xplugin:" + pluginJar, "-Jdummy=" + pluginJar.lastModified)
 }
 
-artifact in (Compile, assembly) := {
-  val art = (artifact in (Compile, assembly)).value
+initialize in Test ~= { _ =>
+  System.setProperty("config.file", "src/test/resources/application.conf")
+}
+
+artifact in(Compile, assembly) := {
+  val art = (artifact in(Compile, assembly)).value
   art.copy(`classifier` = Some("assembly"))
 }
 
-addArtifact(artifact in (Compile, assembly), assembly)
+addArtifact(artifact in(Compile, assembly), assembly)
 
 publishTo := {
   val nexus = "https://oss.sonatype.org/"
