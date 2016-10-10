@@ -11,7 +11,6 @@ scalacOptions := Seq(
   "-feature",
   "-target:jvm-1.8",
   "-encoding", "utf8",
-  "-Xfatal-warnings",
   "-Xlint",
   "-Xlint:-missing-interpolator",
   "-Yno-adapted-args",

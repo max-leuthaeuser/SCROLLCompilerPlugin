@@ -74,7 +74,7 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
 
   private def hasBehavior(c: ClassDef, m: String): Boolean = c.symbol.typeSignature.members.exists(_.name.encodedName.toString == m)
 
-  private def getRoles(p: String): List[String] = config.getPlays.filter { case (c, r) => c == p } map (_._2)
+  private def getRoles(p: String): List[String] = config.getPlays.filter { case (c, _) => c == p } map (_._2)
 
   private def logDynamics(t: Tree, dyn: Name, name: Tree): Unit = {
     val pt = getPlayerType(t)
@@ -82,7 +82,7 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
     val rcs = getRoles(pt).map(r => playerMapping.getOrElse(r, null)).filter(_ != null)
     val b = nameMapping(name.toString)
     val hasB = (rcs :+ pc).exists(cl => hasBehavior(cl, b))
-    r.warning(t.pos, s"$dyn detected on: $pt.\n\tFor that player the following roles are specified in ${config.modelFile}:\n\t${getRoles(pt).mkString(", ")}")
+    showMessage(t.pos, s"$dyn detected on: $pt.\n\tFor that player the following roles are specified in ${config.modelFile}:\n\t${getRoles(pt).mkString(", ")}")
     if (!hasB) {
       showMessage(name.pos, s"Neither $pt, nor its allowed roles specified in ${config.modelFile} offer the called behavior!\n\tThis may indicate a programming error!")
     }
