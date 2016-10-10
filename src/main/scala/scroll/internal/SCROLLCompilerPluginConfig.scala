@@ -26,7 +26,7 @@ class SCROLLCompilerPluginConfig() {
   private val validTypes = Set(NATURALTYPE, ROLEGROUP, ROLETYPE, COMPARTMENTTYPE, RELATIONSHIP, FULFILLMENT, PART)
   protected var crom = Option.empty[FormalCROM[String, String, String, String]]
 
-  private val config = ConfigFactory.load(getClass.getClassLoader, "application")
+  private val config = ConfigFactory.load()
   val compileTimeErrors: Boolean = config.getBoolean("compile-time-errors")
   val modelFile: String = config.getString("model-file")
 

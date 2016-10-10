@@ -32,13 +32,9 @@ assemblyJarName in assembly := "SCROLLCompilerPlugin.jar"
 
 assembleArtifact in assemblyPackageScala := false
 
-unmanagedResourceDirectories in Compile ++= Seq(
-  baseDirectory.value / "src/main/resources",
-  baseDirectory.value / "src/test/resources"
-)
-
 assemblyMergeStrategy in assembly := {
-  case PathList(ps@_*) if ps.last == "application.conf" => MergeStrategy.first
+  case PathList(ps@_*) if ps.last.contains(".crom") => MergeStrategy.discard
+  case PathList(ps@_*) if ps.last == "application.conf" => MergeStrategy.discard
   case PathList(ps@_*) if ps.last == "scalac-plugin.xml" => MergeStrategy.first
   case PathList(ps@_*)
     if ps.last.endsWith("plugin.xml") ||
@@ -56,6 +52,13 @@ scalacOptions in console in Compile <+= (assembly in Compile) map {
 scalacOptions in Test <++= (assembly in Compile) map {
   pluginJar => Seq("-Xplugin:" + pluginJar, "-Jdummy=" + pluginJar.lastModified)
 }
+
+artifact in (Compile, assembly) := {
+  val art = (artifact in (Compile, assembly)).value
+  art.copy(`classifier` = Some("assembly"))
+}
+
+addArtifact(artifact in (Compile, assembly), assembly)
 
 publishTo := {
   val nexus = "https://oss.sonatype.org/"
