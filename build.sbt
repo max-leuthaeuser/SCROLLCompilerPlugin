@@ -34,6 +34,7 @@ assembleArtifact in assemblyPackageScala := false
 
 assemblyMergeStrategy in assembly := {
   case PathList(ps@_*) if ps.last.contains(".crom") => MergeStrategy.discard
+  case PathList(ps@_*) if ps.last.contains(".ecore") => MergeStrategy.first
   case PathList(ps@_*) if ps.last == "application.conf" => MergeStrategy.discard
   case PathList(ps@_*) if ps.last == "scalac-plugin.xml" => MergeStrategy.first
   case PathList(ps@_*)
