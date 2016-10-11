@@ -13,10 +13,24 @@ class SCROLLCompilerPluginTest extends WordSpec with Matchers {
 
     def world(): String = "World"
 
+    def foo(param1: String, param2: Int): String = world() + param1 + param2
+
     def bla(param: String): String = world() + param
   }
 
   "the plugin" should {
+    "detect applyDynamic with arg" in {
+      val _ = new Compartment {
+
+        val p = Account()
+        val r = Target()
+
+        val c = p play r
+
+        val _: String = c.foo("42", 1)
+      }
+    }
+
     "detect applyDynamic" in {
       val _ = new Compartment {
 

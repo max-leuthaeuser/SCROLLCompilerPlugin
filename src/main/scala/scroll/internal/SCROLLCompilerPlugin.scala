@@ -72,7 +72,18 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
     case _ => ()
   }
 
-  private def hasBehavior(c: ClassDef, m: String): Boolean = c.symbol.typeSignature.members.exists(_.name.encodedName.toString == m)
+  private def matchMethod(m: Symbol, name: String, args: Seq[Type]): Boolean = {
+    lazy val matchName = m.name.encodedName.toString == name
+    lazy val params = m.asMethod.paramLists.flatten.map(_.typeSignature)
+    lazy val matchParamCount = params.length == args.size
+    lazy val matchArgTypes = args.zip(params).forall {
+      case (a, p) => a.looselyMatches(p)
+    }
+    matchName && matchParamCount && matchArgTypes
+  }
+
+  private def hasBehavior(c: ClassDef, m: String, args: Seq[Type]): Boolean =
+    c.symbol.typeSignature.members.exists(matchMethod(_, m, args))
 
   private def getRoles(p: String): List[String] =
     config.getPlays.flatMap {
@@ -81,13 +92,17 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
       case _ => List()
     }.distinct
 
-  private def logDynamics(t: Tree, dyn: Name, name: Tree): Unit = {
+  private def logDynamics(t: Tree, dyn: Name, name: Tree, args: Seq[Type]): Unit = {
     val pt = getPlayerType(t)
     val pc = playerMapping(pt)
     val rcs = getRoles(pt).map(r => playerMapping.getOrElse(r, null)).filter(_ != null)
     val b = nameMapping(name.toString)
-    val hasB = (rcs :+ pc).exists(cl => hasBehavior(cl, b))
-    showMessage(t.pos, s"'$dyn' detected on: '$pt'.\n\tFor '$pt' the following dynamic extensions are specified in '${config.modelFile}':\n\t${getRoles(pt).mkString(", ")}")
+    val hasB = (rcs :+ pc).exists(cl => hasBehavior(cl, b, args))
+    val argsString = args.isEmpty match {
+      case true => ""
+      case false => args.mkString("(", ", ", ")")
+    }
+    showMessage(t.pos, s"$dyn as '$b$argsString' detected on: '$pt'.\n\tFor '$pt' the following dynamic extensions are specified in '${config.modelFile}':\n\t${getRoles(pt).mkString(", ")}")
     if (!hasB) {
       showMessage(name.pos, s"Neither '$pt', nor its dynamic extensions specified in '${config.modelFile}' offer the called behavior!\n\tThis may indicate a programming error!")
     }
@@ -97,9 +112,11 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
     case ValDef(_, name, _, Literal(Constant(v))) =>
       nameMapping(name.toString) = v.toString
     case Apply(Select(t, dyn), List(name)) if dyn == UpdateDynamic =>
-      logDynamics(t, dyn, name)
-    case Apply(TypeApply(Select(t, dyn), _), List(name)) if dyn == ApplyDynamic || dyn == SelectDynamic || dyn == ApplyDynamicNamed =>
-      logDynamics(t, dyn, name)
+      logDynamics(t, dyn, name, List.empty)
+    case Apply(TypeApply(Select(t, dyn), _), List(name)) if dyn == SelectDynamic =>
+      logDynamics(t, dyn, name, List.empty)
+    case Apply(Apply(TypeApply(Select(t, dyn), _), List(name)), args) if dyn == ApplyDynamicNamed || dyn == ApplyDynamic =>
+      logDynamics(t, dyn, name, args.map(_.tpe))
     case _ => ()
   }
 }
