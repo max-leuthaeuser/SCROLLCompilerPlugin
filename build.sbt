@@ -59,7 +59,7 @@ initialize in Test ~= { _ =>
 
 artifact in(Compile, assembly) := {
   val art = (artifact in(Compile, assembly)).value
-  art.copy(`classifier` = Some("assembly"))
+  art.copy(`classifier` = Some("SCROLLCompilerPlugin.jar"))
 }
 
 addArtifact(artifact in(Compile, assembly), assembly)
