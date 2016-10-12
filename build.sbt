@@ -1,6 +1,6 @@
 name := "SCROLLCompilerPlugin"
 scalaVersion := "2.11.7"
-version := "0.0.1"
+version := "0.0.2"
 organization := "com.github.max-leuthaeuser"
 
 javacOptions in Compile ++= Seq("-source", "1.8", "-target", "1.8")
@@ -60,7 +60,7 @@ initialize in Test ~= { _ =>
 
 artifact in(Compile, assembly) := {
   val art = (artifact in(Compile, assembly)).value
-  art.copy(`classifier` = Some("SCROLLCompilerPlugin.jar"))
+  art.copy(`classifier` = Some(""))
 }
 
 addArtifact(artifact in(Compile, assembly), assembly)
