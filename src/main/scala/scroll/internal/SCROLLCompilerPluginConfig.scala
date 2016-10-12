@@ -35,7 +35,6 @@ class SCROLLCompilerPluginConfig() {
   def settings: String = s"\tcompile-time-errors: $compileTimeErrors\n\tmodel-file: $modelFile"
 
   withModel(modelFile)
-  // assert(wellformed, "The specified model must be well-formed!")
 
   private def registerMetaModel(rs: ResourceSetImpl): Unit = {
     Resource.Factory.Registry.INSTANCE.getExtensionToFactoryMap.put(

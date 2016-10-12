@@ -34,7 +34,7 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
 
   private val config = new SCROLLCompilerPluginConfig()
 
-  private val availablePlayer = config.getPlays.flatMap { case (a, b) => List(a, b) }
+  private val availablePlayer = config.getPlays.flatMap { case (a, b) => List(a, b) }.distinct
 
   inform(s"Running the SCROLLCompilerPlugin with settings:\n${config.settings}")
 
@@ -58,6 +58,8 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
     def apply(unit: CompilationUnit): Unit = {
       // find all player classes:
       new ForeachTreeTraverser(findPlayer).traverse(unit.body)
+      // find all player behavior:
+      new ForeachTreeTraverser(findBehavior).traverse(unit.body)
       // handle calls to Dynamic Trait:
       new ForeachTreeTraverser(handleDynamics).traverse(unit.body)
     }
@@ -69,6 +71,12 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
       if (availablePlayer.contains(n)) {
         playerMapping(n) = c
       }
+    case _ => ()
+  }
+
+  private def findBehavior(tree: Tree): Unit = tree match {
+    case ValDef(_, name, _, Literal(Constant(v))) =>
+      nameMapping(name.decoded) = sanitizeName(v.toString)
     case _ => ()
   }
 
@@ -92,11 +100,14 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
       case _ => List()
     }.distinct
 
+  private def sanitizeName(e: String): String = e.replaceAll("\"", "")
+
   private def logDynamics(t: Tree, dyn: Name, name: Tree, args: Seq[Type]): Unit = {
     val pt = getPlayerType(t)
     val pc = playerMapping(pt)
     val rcs = getRoles(pt).map(r => playerMapping.getOrElse(r, null)).filter(_ != null)
-    val b = nameMapping(name.toString)
+    val n = sanitizeName(name.toString())
+    val b = nameMapping.getOrElse(n, n)
     val hasB = (rcs :+ pc).exists(cl => hasBehavior(cl, b, args))
     val argsString = args.isEmpty match {
       case true => ""
@@ -109,8 +120,6 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
   }
 
   private def handleDynamics(tree: Tree): Unit = tree match {
-    case ValDef(_, name, _, Literal(Constant(v))) =>
-      nameMapping(name.toString) = v.toString
     case Apply(Select(t, dyn), List(name)) if dyn == UpdateDynamic =>
       logDynamics(t, dyn, name, List.empty)
     case Apply(TypeApply(Select(t, dyn), _), List(name)) if dyn == SelectDynamic =>
