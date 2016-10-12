@@ -10,8 +10,8 @@ This project contains a Scala compiler plugin supporting [SCROLL][scroll].
   4. Invoke ```sbt assembly```. The resulting ```SCROLLCompilerPlugin.jar``` is stored under ```target/scala-2.11/```.
 
 **2. Use the plugin:**
-  1. Using Eclipse/Intellij: add ```SCROLLCompilerPlugin.jar``` to your IDEs Scala compiler plugin config.
-  2. Or if you want to use it on the console directly with ```scalac```: add the ```-Xplugin:SCROLLCompilerPlugin.jar``` switch.
+  1. Using Eclipse/Intellij: add ```SCROLLCompilerPlugin-assembly-versionNumber.jar``` to your IDEs Scala compiler plugin config.
+  2. Or if you want to use it on the console directly with ```scalac```: add the ```-Xplugin:SCROLLCompilerPlugin-assembly-versionNumber.jar``` switch.
   3. Place your ```application.conf``` and CROM model ([CROM][crom], [FRaMED][framed]) in the resource folder (like in ```test/```).
 
 **3. Example:**

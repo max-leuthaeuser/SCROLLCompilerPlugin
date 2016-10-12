@@ -28,8 +28,6 @@ libraryDependencies ++= Seq(
 
 test in assembly := {}
 
-assemblyJarName in assembly := "SCROLLCompilerPlugin.jar"
-
 assembleArtifact in assemblyPackageScala := false
 
 assemblyMergeStrategy in assembly := {
@@ -60,7 +58,7 @@ initialize in Test ~= { _ =>
 
 artifact in(Compile, assembly) := {
   val art = (artifact in(Compile, assembly)).value
-  art.copy(`classifier` = Some(""))
+  art.copy(`classifier` = Some("assembly"))
 }
 
 addArtifact(artifact in(Compile, assembly), assembly)
