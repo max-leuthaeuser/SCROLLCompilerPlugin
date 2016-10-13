@@ -17,53 +17,109 @@ This project contains a Scala compiler plugin supporting [SCROLL][scroll].
 **3. Example:**
 
 ```scala
-    case class Account() {
-        def hello(): String = "Hello"
-    }
+case class SomePlayer() {
+  def hello(): String = "Hello"
+}
 
-    case class Target() {
-        val value: Int = 0
-        def world(): String = "World"
-        def bla(param: String): String = world() + param
-    }
+case class SomeRole() {
+  val value: Int = 0
+  def world(): String = "World"
+  def foo(param1: String, param2: Int): String = world() + param1 + param2
+  def bla(param: String): String = world() + param
+}
 
-    new Compartment {
-        val p = Account()
-        val r = Target()
-        val c = p play r
-        val _: String = c.world()
-    }
+new Compartment {
+  val p = SomePlayer()  
+  val r = SomeRole()
+  val c = p play r  
+  val _: String = c.foo("42", 1)
+}
 
-    new Compartment {
-        val p = Account()
-        val r = Target()
-        val c = p play r
-        val _: String = c.NOworld()
-    }
+new Compartment {
+  val p = SomePlayer()
+  val r = SomeRole()
+  val c = p play r
+  val _: String = c.world()
+}
+
+new Compartment {
+  val p = SomePlayer()
+  val r = SomeRole()
+  val c = p play r
+  val _: String = c.NOworld()
+}
+
+new Compartment {
+  val p = SomePlayer()
+  val r = SomeRole()
+  val c = p play r
+  val _: String = c.bla(param = "!")
+}
+
+new Compartment {
+  val p = SomePlayer()
+  val r = SomeRole()
+  val c = p play r
+  val _: Int = c.value
+}
+
+new Compartment {
+  val p = SomePlayer()
+  val r = SomeRole()
+  val c = p play r
+  c.value = 10
+}
 ```
 
 This will generate the following compile output:
 
 ```
-Information:scalac: Running the SCROLLCompilerPlugin with settings:
-	compile-time-errors: false
-	model-file: Bank.crom
+[info] Running the SCROLLCompilerPlugin with settings:
+[info]  compile-time-errors: false
+[info]  model-file: Test.crom
 
-Information:scalac: Model 'Bank.crom' was loaded.
+[info] Model 'Test.crom' was loaded.
+[info] The following fills relations are specified:
+[info]  'SomePlayer' -> 'SomeRole'
 
-Warning: applyDynamic detected on: Account.
-	For 'Account' the following dynamic extensions are specified in 'Bank.crom':
-	Target, Source, SavingsAccount, CheckingAccount
-        val _: String = c.world()
+[warn] Test.scala:30: applyDynamic as 'foo(String, Int)' detected on: 'SomePlayer'.
+[warn]  For 'SomePlayer' the following dynamic extensions are specified in 'Test.crom':
+[warn]  'SomePlayer' -> 'SomeRole'
+[warn]         val _: String = c.foo("42", 1)
+[warn]                         ^
+[warn] Test.scala:42: applyDynamic as 'world' detected on: 'SomePlayer'.
+[warn]  For 'SomePlayer' the following dynamic extensions are specified in 'Test.crom':
+[warn]  'SomePlayer' -> 'SomeRole'
+[warn]         val _: String = c.world()
+[warn]                         ^
+[warn] Test.scala:55: applyDynamic as 'NOworld' detected on: 'SomePlayer'.
+[warn]  For 'SomePlayer' the following dynamic extensions are specified in 'Test.crom':
+[warn]  'SomePlayer' -> 'SomeRole'
+[warn]           val _: String = c.NOworld()
+[warn]                           ^
+[warn] Test.scala:55: Neither 'SomePlayer', nor its dynamic extensions specified in 'Test.crom' offer the called behavior!
+[warn]  This may indicate a programming error!
+[warn]           val _: String = c.NOworld()
+[warn]                             ^
+[warn] Test.scala:68: applyDynamicNamed as 'bla((String, String))' detected on: 'SomePlayer'.
+[warn]  For 'SomePlayer' the following dynamic extensions are specified in 'Test.crom':
+[warn]  'SomePlayer' -> 'SomeRole'
+[warn]         val _: String = c.bla(param = "!")
+[warn]                         ^
+[warn] Test.scala:80: selectDynamic as 'value' detected on: 'SomePlayer'.
+[warn]  For 'SomePlayer' the following dynamic extensions are specified in 'Test.crom':
+[warn]  'SomePlayer' -> 'SomeRole'
+[warn]         val _: Int = c.value
+[warn]                      ^
+[warn] Test.scala:92: updateDynamic as 'value' detected on: 'SomePlayer'.
+[warn]  For 'SomePlayer' the following dynamic extensions are specified in 'Test.crom':
+[warn]  'SomePlayer' -> 'SomeRole'
+[warn]         c.value = 10
+[warn]         ^
 
-Warning: applyDynamic detected on: Account.
-	For 'Account' the following dynamic extensions are specified in 'Bank.crom':
-	Target, Source, SavingsAccount, CheckingAccount
-          val _: String = c.NOworld()
-Warning: Neither 'Account', nor its dynamic extensions specified in 'Bank.crom' offer the called behavior!
-	This may indicate a programming error!
-          val _: String = c.NOworld()
+[warn] 7 warnings found
 ```
+*(line numbers only for demonstration)*
 
 [sbt-gen-idea]: https://github.com/mpeltonen/sbt-idea
 [gen-eclipse]: https://github.com/typesafehub/sbteclipse

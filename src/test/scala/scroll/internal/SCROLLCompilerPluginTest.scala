@@ -4,11 +4,11 @@ import org.scalatest.{Matchers, WordSpec}
 
 class SCROLLCompilerPluginTest extends WordSpec with Matchers {
 
-  case class Account() {
+  case class SomePlayer() {
     def hello(): String = "Hello"
   }
 
-  case class Target() {
+  case class SomeRole() {
     val value: Int = 0
 
     def world(): String = "World"
@@ -22,8 +22,8 @@ class SCROLLCompilerPluginTest extends WordSpec with Matchers {
     "detect applyDynamic with arg" in {
       val _ = new Compartment {
 
-        val p = Account()
-        val r = Target()
+        val p = SomePlayer()
+        val r = SomeRole()
 
         val c = p play r
 
@@ -34,8 +34,8 @@ class SCROLLCompilerPluginTest extends WordSpec with Matchers {
     "detect applyDynamic" in {
       val _ = new Compartment {
 
-        val p = Account()
-        val r = Target()
+        val p = SomePlayer()
+        val r = SomeRole()
 
         val c = p play r
 
@@ -46,8 +46,8 @@ class SCROLLCompilerPluginTest extends WordSpec with Matchers {
     "detect applyDynamic and detect non-existing behavior" in {
       val _ = new Compartment {
 
-        val p = Account()
-        val r = Target()
+        val p = SomePlayer()
+        val r = SomeRole()
 
         val c = p play r
 
@@ -60,8 +60,8 @@ class SCROLLCompilerPluginTest extends WordSpec with Matchers {
     "detect applyDynamicNamed" in {
       val _ = new Compartment {
 
-        val p = Account()
-        val r = Target()
+        val p = SomePlayer()
+        val r = SomeRole()
 
         val c = p play r
 
@@ -72,8 +72,8 @@ class SCROLLCompilerPluginTest extends WordSpec with Matchers {
     "detect selectDynamic" in {
       val _ = new Compartment {
 
-        val p = Account()
-        val r = Target()
+        val p = SomePlayer()
+        val r = SomeRole()
 
         val c = p play r
 
@@ -84,8 +84,8 @@ class SCROLLCompilerPluginTest extends WordSpec with Matchers {
     "detect updateDynamic" in {
       val _ = new Compartment {
 
-        val p = Account()
-        val r = Target()
+        val p = SomePlayer()
+        val r = SomeRole()
 
         val c = p play r
 

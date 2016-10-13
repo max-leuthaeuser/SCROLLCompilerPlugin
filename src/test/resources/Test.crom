@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="ASCII"?>
+<crom_l1_composed:Model xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:crom_l1_composed="platform:/resource/org.rosi.crom.metamodel/">
+  <elements xsi:type="crom_l1_composed:NaturalType" name="SomePlayer">
+    <operations name="hello"/>
+  </elements>
+  <elements xsi:type="crom_l1_composed:CompartmentType" name="SomeCompartment">
+    <parts>
+      <role xsi:type="crom_l1_composed:RoleType" name="SomeRole">
+        <attributes name="value"/>
+        <operations name="world"/>
+        <operations name="foo">
+          <params name="param1"/>
+          <params name="param2"/>
+        </operations>
+        <operations name="bla">
+          <params name="param"/>
+        </operations>
+      </role>
+    </parts>
+  </elements>
+  <relations xsi:type="crom_l1_composed:Fulfillment" filled="//@elements.1/@parts.0/@role" filler="//@elements.0"/>
+</crom_l1_composed:Model>
