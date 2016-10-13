@@ -40,7 +40,7 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
 
   inform(s"Model '${config.modelFile}' was loaded.")
 
-  inform(s"The following fills relations are specified:\n${config.getPlays.map(p => s"'${p._1}' -> '${p._2}'").mkString("\t", "\n\t", "")}")
+  inform(s"The following fills relations are specified:\n${prettyPrintFills()}")
 
   def newPhase(prev: Phase): Phase = new TraverserPhase(prev)
 
@@ -92,11 +92,10 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
     matchName && matchParamCount && matchArgTypes
   }
 
-  private def hasBehavior(pt: String, m: String, args: Seq[Type]): Boolean = {
-    val pc = playerMapping(pt)
-    val rcs = getRoles(pt).map(r => playerMapping.getOrElse(r, null)).filter(_ != null)
-    (rcs :+ pc).exists(cl => cl.symbol.typeSignature.members.exists(matchMethod(_, m, args)))
-  }
+  private def hasBehavior(pt: String, m: String, args: Seq[Type]): List[String] =
+    (getRoles(pt).map(r => playerMapping(r)) :+ playerMapping(pt)).collect {
+      case cl if cl.symbol.typeSignature.members.exists(matchMethod(_, m, args)) => cl.name.decode.toString
+    }
 
   private def getRoles(p: String): List[String] =
     config.getPlays.flatMap {
@@ -107,8 +106,14 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
 
   private def sanitizeName(e: String): String = e.replaceAll("\"", "")
 
-  private def prettyPrintFills(p: String, dyns: List[String]): String =
-    dyns.filter(_ != p).map(d => s"'$p' -> '$d'").mkString("\n\t")
+  private def prettyPrintFills(): String =
+    config.getPlays.map(p => s"'${p._1}' -> '${p._2}'").mkString("\t", "\n\t", "")
+
+  private def prettyPrintFills(p: String): String =
+    getRoles(p).filter(_ != p).map(d => s"'$p' -> '$d'").mkString("\n\t\t")
+
+  private def prettyPrintExtensions(l: List[String]): String =
+    l.map(e => s"- '$e'").mkString("\t", "\n\t\t", "")
 
   private def prettyPrintArgs(args: Seq[Type]): String = args.isEmpty match {
     case true => ""
@@ -119,10 +124,20 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
     val pt = getPlayerType(t)
     val n = sanitizeName(name.toString)
     val b = nameMapping.getOrElse(n, n)
-    showMessage(t.pos, s"$dyn as '$b${prettyPrintArgs(args)}' detected on: '$pt'.\n\tFor '$pt' the following dynamic extensions are specified in '${config.modelFile}':\n\t${prettyPrintFills(pt, getRoles(pt))}")
-    if (!hasBehavior(pt, b, args)) {
-      showMessage(name.pos, s"Neither '$pt', nor its dynamic extensions specified in '${config.modelFile}' offer the called behavior!\n\tThis may indicate a programming error!")
+
+    val bList = hasBehavior(pt, b, args)
+    val hasB = bList.nonEmpty
+
+    val outA = s"$dyn as '$b${prettyPrintArgs(args)}' detected on: '$pt'.\n\tFor '$pt' the following dynamic extensions are specified in '${config.modelFile}':\n\t\t${prettyPrintFills(pt)}"
+    val out = hasB match {
+      case true =>
+        outA + s"\n\tMake sure at least one of the following dynamic extensions is bound:\n\t${prettyPrintExtensions(bList.distinct)}"
+      case false =>
+        outA
     }
+    showMessage(t.pos, out)
+    if (!hasB)
+      showMessage(name.pos, s"Neither '$pt', nor its dynamic extensions specified in '${config.modelFile}' offer the called behavior!\n\tThis may indicate a programming error!")
   }
 
   private def handleDynamics(tree: Tree): Unit = tree match {
