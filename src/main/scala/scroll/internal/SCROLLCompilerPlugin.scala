@@ -40,6 +40,8 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
 
   inform(s"Model '${config.modelFile}' was loaded.")
 
+  inform(s"The following fills relations are specified:\n${config.getPlays.map(p => s"'${p._1}' -> '${p._2}'").mkString("\t", "\n\t", "")}")
+
   def newPhase(prev: Phase): Phase = new TraverserPhase(prev)
 
   private def showMessage(pos: Position, m: String): Unit = config.compileTimeErrors match {
@@ -101,11 +103,12 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
       case (e, rl) if e == p => List(e, rl)
       case (pl, e) if e == p => getRoles(pl)
       case _ => List()
-    }.distinct.filter(_ != p)
+    }.distinct
 
   private def sanitizeName(e: String): String = e.replaceAll("\"", "")
 
-  private def prettyPrintFills(p: String, dyns: List[String]): String = dyns.map(d => s"'$p' -> '$d'").mkString("\n\t")
+  private def prettyPrintFills(p: String, dyns: List[String]): String =
+    dyns.filter(_ != p).map(d => s"'$p' -> '$d'").mkString("\n\t")
 
   private def prettyPrintArgs(args: Seq[Type]): String = args.isEmpty match {
     case true => ""
