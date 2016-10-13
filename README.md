@@ -84,17 +84,21 @@ This will generate the following compile output:
 
 [warn] Test.scala:30: applyDynamic as 'foo(String, Int)' detected on: 'SomePlayer'.
 [warn]  For 'SomePlayer' the following dynamic extensions are specified in 'Test.crom':
-[warn]  'SomePlayer' -> 'SomeRole'
+[warn]          'SomePlayer' -> 'SomeRole'
+[warn]  Make sure at least one of the following dynamic extensions is bound:
+[warn]          - 'SomeRole'
 [warn]         val _: String = c.foo("42", 1)
 [warn]                         ^
 [warn] Test.scala:42: applyDynamic as 'world' detected on: 'SomePlayer'.
 [warn]  For 'SomePlayer' the following dynamic extensions are specified in 'Test.crom':
-[warn]  'SomePlayer' -> 'SomeRole'
+[warn]          'SomePlayer' -> 'SomeRole'
+[warn]  Make sure at least one of the following dynamic extensions is bound:
+[warn]          - 'SomeRole'
 [warn]         val _: String = c.world()
 [warn]                         ^
 [warn] Test.scala:55: applyDynamic as 'NOworld' detected on: 'SomePlayer'.
 [warn]  For 'SomePlayer' the following dynamic extensions are specified in 'Test.crom':
-[warn]  'SomePlayer' -> 'SomeRole'
+[warn]          'SomePlayer' -> 'SomeRole'
 [warn]           val _: String = c.NOworld()
 [warn]                           ^
 [warn] Test.scala:55: Neither 'SomePlayer', nor its dynamic extensions specified in 'Test.crom' offer the called behavior!
@@ -103,17 +107,23 @@ This will generate the following compile output:
 [warn]                             ^
 [warn] Test.scala:68: applyDynamicNamed as 'bla((String, String))' detected on: 'SomePlayer'.
 [warn]  For 'SomePlayer' the following dynamic extensions are specified in 'Test.crom':
-[warn]  'SomePlayer' -> 'SomeRole'
+[warn]          'SomePlayer' -> 'SomeRole'
+[warn]  Make sure at least one of the following dynamic extensions is bound:
+[warn]          - 'SomeRole'
 [warn]         val _: String = c.bla(param = "!")
 [warn]                         ^
 [warn] Test.scala:80: selectDynamic as 'value' detected on: 'SomePlayer'.
 [warn]  For 'SomePlayer' the following dynamic extensions are specified in 'Test.crom':
-[warn]  'SomePlayer' -> 'SomeRole'
+[warn]          'SomePlayer' -> 'SomeRole'
+[warn]  Make sure at least one of the following dynamic extensions is bound:
+[warn]          - 'SomeRole'
 [warn]         val _: Int = c.value
 [warn]                      ^
 [warn] Test.scala:92: updateDynamic as 'value' detected on: 'SomePlayer'.
 [warn]  For 'SomePlayer' the following dynamic extensions are specified in 'Test.crom':
-[warn]  'SomePlayer' -> 'SomeRole'
+[warn]          'SomePlayer' -> 'SomeRole'
+[warn]  Make sure at least one of the following dynamic extensions is bound:
+[warn]          - 'SomeRole'
 [warn]         c.value = 10
 [warn]         ^
 
