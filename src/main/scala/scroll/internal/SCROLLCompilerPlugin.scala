@@ -90,31 +90,34 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
     matchName && matchParamCount && matchArgTypes
   }
 
-  private def hasBehavior(c: ClassDef, m: String, args: Seq[Type]): Boolean =
-    c.symbol.typeSignature.members.exists(matchMethod(_, m, args))
+  private def hasBehavior(pt: String, m: String, args: Seq[Type]): Boolean = {
+    val pc = playerMapping(pt)
+    val rcs = getRoles(pt).map(r => playerMapping.getOrElse(r, null)).filter(_ != null)
+    (rcs :+ pc).exists(cl => cl.symbol.typeSignature.members.exists(matchMethod(_, m, args)))
+  }
 
   private def getRoles(p: String): List[String] =
     config.getPlays.flatMap {
       case (e, rl) if e == p => List(e, rl)
       case (pl, e) if e == p => getRoles(pl)
       case _ => List()
-    }.distinct
+    }.distinct.filter(_ != p)
 
   private def sanitizeName(e: String): String = e.replaceAll("\"", "")
 
+  private def prettyPrintFills(p: String, dyns: List[String]): String = dyns.map(d => s"'$p' -> '$d'").mkString("\n\t")
+
+  private def prettyPrintArgs(args: Seq[Type]): String = args.isEmpty match {
+    case true => ""
+    case false => args.mkString("(", ", ", ")")
+  }
+
   private def logDynamics(t: Tree, dyn: Name, name: Tree, args: Seq[Type]): Unit = {
     val pt = getPlayerType(t)
-    val pc = playerMapping(pt)
-    val rcs = getRoles(pt).map(r => playerMapping.getOrElse(r, null)).filter(_ != null)
-    val n = sanitizeName(name.toString())
+    val n = sanitizeName(name.toString)
     val b = nameMapping.getOrElse(n, n)
-    val hasB = (rcs :+ pc).exists(cl => hasBehavior(cl, b, args))
-    val argsString = args.isEmpty match {
-      case true => ""
-      case false => args.mkString("(", ", ", ")")
-    }
-    showMessage(t.pos, s"$dyn as '$b$argsString' detected on: '$pt'.\n\tFor '$pt' the following dynamic extensions are specified in '${config.modelFile}':\n\t${getRoles(pt).mkString(", ")}")
-    if (!hasB) {
+    showMessage(t.pos, s"$dyn as '$b${prettyPrintArgs(args)}' detected on: '$pt'.\n\tFor '$pt' the following dynamic extensions are specified in '${config.modelFile}':\n\t${prettyPrintFills(pt, getRoles(pt))}")
+    if (!hasBehavior(pt, b, args)) {
       showMessage(name.pos, s"Neither '$pt', nor its dynamic extensions specified in '${config.modelFile}' offer the called behavior!\n\tThis may indicate a programming error!")
     }
   }
