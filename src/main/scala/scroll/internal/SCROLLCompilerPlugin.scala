@@ -27,8 +27,18 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
   private val UpdateDynamic = TermName("updateDynamic")
   private val ApplyDynamicNamed = TermName("applyDynamicNamed")
   private val Wrapped = TermName("wrapped")
+  private val Play = TermName("play")
 
   private val nameMapping = mutable.Map.empty[String, String]
+
+  private case class Plays(pos: Position, player: String, dynExt: String) {
+    override def toString: String = pos.source.toString() match {
+      case s if s.length >= 30 => s"[line:${pos.line}|col:${pos.column}] at source '${s.substring(0, 19)}.../${pos.source.file.name}'"
+      case s => s"[line:${pos.line}|col:${pos.column}] at source '$s'"
+    }
+  }
+
+  private val plays = mutable.ArrayBuffer.empty[Plays]
 
   private val playerMapping = mutable.Map.empty[String, ClassDef]
 
@@ -58,6 +68,8 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
 
   private class TraverserPhase(prev: Phase) extends StdPhase(prev) {
     def apply(unit: CompilationUnit): Unit = {
+      // find all plays:
+      new ForeachTreeTraverser(findPlays).traverse(unit.body)
       // find all player classes:
       new ForeachTreeTraverser(findPlayer).traverse(unit.body)
       // find all player behavior:
@@ -65,6 +77,14 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
       // handle calls to Dynamic Trait:
       new ForeachTreeTraverser(handleDynamics).traverse(unit.body)
     }
+  }
+
+  private def findPlays(tree: Tree): Unit = tree match {
+    case a@Apply(Apply(TypeApply(Select(t, dyn), _), List(name)), args) if dyn == Play =>
+      val TypeRef(_, _, ttp) = t.tpe
+      val TypeRef(_, _, ttr) = args.head.tpe
+      plays.append(Plays(t.pos, ReflectiveHelper.simpleName(ttp.head.toString), ReflectiveHelper.simpleName(ttr.head.toString)))
+    case _ => ()
   }
 
   private def findPlayer(tree: Tree): Unit = tree match {
@@ -107,31 +127,44 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
   private def sanitizeName(e: String): String = e.replaceAll("\"", "")
 
   private def prettyPrintFills(): String =
-    config.getPlays.map(p => s"'${p._1}' -> '${p._2}'").mkString("\t", "\n\t", "")
+    config.getPlays.map(p => s"- '${p._1}' -> '${p._2}'").mkString("\t", "\n\t", "")
 
   private def prettyPrintFills(p: String): String =
-    getRoles(p).filter(_ != p).map(d => s"'$p' -> '$d'").mkString("\n\t\t")
+    getRoles(p).filter(_ != p).map(d => s"- '$p' -> '$d'").mkString("\n\t\t")
 
-  private def prettyPrintExtensions(l: List[String]): String =
-    l.map(e => s"- '$e'").mkString("\t", "\n\t\t", "")
+  private def prettyPrintExtensions(m: Map[String, List[Plays]]): String =
+    m.map {
+      case (k, v) if v.nonEmpty => s"- '$k' maybe bound at:\n${v.mkString("\t\t\t", "\n\t\t\t", "")}"
+      case (k, v) => s"- '$k'"
+    }.mkString("\t", "\n\t\t", "")
 
   private def prettyPrintArgs(args: Seq[Type]): String = args.isEmpty match {
     case true => ""
     case false => args.mkString("(", ", ", ")")
   }
 
+  private def hasPlays(player: String, dynExt: String): List[Plays] =
+    plays.filter(p => (p.player == player && p.dynExt == dynExt) || (p.player == dynExt && p.dynExt == player)).toList
+
   private def logDynamics(t: Tree, dyn: Name, name: Tree, args: Seq[Type]): Unit = {
     val pt = getPlayerType(t)
     val n = sanitizeName(name.toString)
     val b = nameMapping.getOrElse(n, n)
 
-    val bList = hasBehavior(pt, b, args)
+    val bList = hasBehavior(pt, b, args).distinct
     val hasB = bList.nonEmpty
 
     val outA = s"$dyn as '$b${prettyPrintArgs(args)}' detected on: '$pt'.\n\tFor '$pt' the following dynamic extensions are specified in '${config.modelFile}':\n\t\t${prettyPrintFills(pt)}"
     val out = hasB match {
       case true =>
-        outA + s"\n\tMake sure at least one of the following dynamic extensions is bound:\n\t${prettyPrintExtensions(bList.distinct)}"
+        val fills = getRoles(pt).filter(_ != pt).diff(bList)
+        val extMap = bList.map(e => {
+          hasPlays(pt, e) match {
+            case Nil => e -> fills.flatMap(el => hasPlays(e, el))
+            case list => e -> list
+          }
+        }).toMap
+        outA + s"\n\tMake sure at least one of the following dynamic extensions is bound:\n\t${prettyPrintExtensions(extMap)}"
       case false =>
         outA
     }

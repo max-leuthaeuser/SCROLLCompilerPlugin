@@ -1,6 +1,6 @@
 name := "SCROLLCompilerPlugin"
 scalaVersion := "2.11.7"
-version := "0.0.2"
+version := "0.0.3"
 organization := "com.github.max-leuthaeuser"
 
 javacOptions in Compile ++= Seq("-source", "1.8", "-target", "1.8")
