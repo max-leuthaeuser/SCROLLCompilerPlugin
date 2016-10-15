@@ -31,6 +31,10 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
 
   private val nameMapping = mutable.Map.empty[String, String]
 
+  private case class LoggedDynamic(t: Tree, dyn: Name, name: Tree, args: Seq[Type])
+
+  private val loggedDynamics = mutable.ArrayBuffer.empty[LoggedDynamic]
+
   private case class Plays(pos: Position, player: String, dynExt: String) {
     override def toString: String = pos.source.toString() match {
       case s if s.length >= 30 => s"[line:${pos.line}|col:${pos.column}] at source '${s.substring(0, 19)}.../${pos.source.file.name}'"
@@ -68,37 +72,34 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
 
   private class TraverserPhase(prev: Phase) extends StdPhase(prev) {
     def apply(unit: CompilationUnit): Unit = {
-      // find all plays:
-      new ForeachTreeTraverser(findPlays).traverse(unit.body)
-      // find all player classes:
-      new ForeachTreeTraverser(findPlayer).traverse(unit.body)
-      // find all player behavior:
-      new ForeachTreeTraverser(findBehavior).traverse(unit.body)
-      // handle calls to Dynamic Trait:
-      new ForeachTreeTraverser(handleDynamics).traverse(unit.body)
+      new ForeachTreeTraverser(collectDyns).traverse(unit.body)
+      loggedDynamics.foreach(printLoggedDynamics)
     }
   }
 
-  private def findPlays(tree: Tree): Unit = tree match {
+  private def collectDyns(tree: Tree): Unit = tree match {
+    // TODO: find transfer, drop dynamic extension
+    // find all plays:
     case a@Apply(Apply(TypeApply(Select(t, dyn), _), List(name)), args) if dyn == Play =>
       val TypeRef(_, _, ttp) = t.tpe
       val TypeRef(_, _, ttr) = args.head.tpe
       plays.append(Plays(t.pos, ReflectiveHelper.simpleName(ttp.head.toString), ReflectiveHelper.simpleName(ttr.head.toString)))
-    case _ => ()
-  }
-
-  private def findPlayer(tree: Tree): Unit = tree match {
+    // find all player classes:
     case c@ClassDef(_, name, _, _) =>
       val n = name.decode.toString
       if (availablePlayer.contains(n)) {
         playerMapping(n) = c
       }
-    case _ => ()
-  }
-
-  private def findBehavior(tree: Tree): Unit = tree match {
+    // find all player behavior:
     case ValDef(_, name, _, Literal(Constant(v))) =>
       nameMapping(name.decoded) = sanitizeName(v.toString)
+    // find all calls to Dynamic Trait:
+    case Apply(Select(t, dyn), List(name)) if dyn == UpdateDynamic =>
+      loggedDynamics.append(LoggedDynamic(t, dyn, name, List.empty))
+    case Apply(TypeApply(Select(t, dyn), _), List(name)) if dyn == SelectDynamic =>
+      loggedDynamics.append(LoggedDynamic(t, dyn, name, List.empty))
+    case Apply(Apply(TypeApply(Select(t, dyn), _), List(name)), args) if dyn == ApplyDynamicNamed || dyn == ApplyDynamic =>
+      loggedDynamics.append(LoggedDynamic(t, dyn, name, args.map(_.tpe)))
     case _ => ()
   }
 
@@ -146,7 +147,9 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
   private def hasPlays(player: String, dynExt: String): List[Plays] =
     plays.filter(p => (p.player == player && p.dynExt == dynExt) || (p.player == dynExt && p.dynExt == player)).toList
 
-  private def logDynamics(t: Tree, dyn: Name, name: Tree, args: Seq[Type]): Unit = {
+  private def printLoggedDynamics(loggedDynamic: LoggedDynamic): Unit = {
+    val LoggedDynamic(t, dyn, name, args) = loggedDynamic
+
     val pt = getPlayerType(t)
     val n = sanitizeName(name.toString)
     val b = nameMapping.getOrElse(n, n)
@@ -171,15 +174,5 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
     showMessage(t.pos, out)
     if (!hasB)
       showMessage(name.pos, s"Neither '$pt', nor its dynamic extensions specified in '${config.modelFile}' offer the called behavior!\n\tThis may indicate a programming error!")
-  }
-
-  private def handleDynamics(tree: Tree): Unit = tree match {
-    case Apply(Select(t, dyn), List(name)) if dyn == UpdateDynamic =>
-      logDynamics(t, dyn, name, List.empty)
-    case Apply(TypeApply(Select(t, dyn), _), List(name)) if dyn == SelectDynamic =>
-      logDynamics(t, dyn, name, List.empty)
-    case Apply(Apply(TypeApply(Select(t, dyn), _), List(name)), args) if dyn == ApplyDynamicNamed || dyn == ApplyDynamic =>
-      logDynamics(t, dyn, name, args.map(_.tpe))
-    case _ => ()
   }
 }
