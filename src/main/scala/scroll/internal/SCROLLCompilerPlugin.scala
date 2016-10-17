@@ -22,6 +22,8 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
   val runsAfter = "typer" :: Nil
   val phaseName = "dynamictraitlookup"
 
+  private val MAX_LINE_LENGTH = 30
+
   private val ApplyDynamic = TermName("applyDynamic")
   private val SelectDynamic = TermName("selectDynamic")
   private val UpdateDynamic = TermName("updateDynamic")
@@ -53,7 +55,7 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
 
   private case class AppliedDynExt(t: DynExtType, pos: Position, player: String, dynExt: String) {
     override def toString: String = pos.source.toString() match {
-      case s if s.length >= 30 => s"$t: [line:${pos.line}|col:${pos.column}] at source '${s.substring(0, 19)}.../${pos.source.file.name}'"
+      case s if s.length >= MAX_LINE_LENGTH => s"$t: [line:${pos.line}|col:${pos.column}] at source '${s.substring(0, 19)}.../${pos.source.file.name}'"
       case s => s"$t: [line:${pos.line}|col:${pos.column}] at source '$s'"
     }
   }

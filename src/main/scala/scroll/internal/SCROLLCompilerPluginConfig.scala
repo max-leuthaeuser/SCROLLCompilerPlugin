@@ -30,7 +30,7 @@ class SCROLLCompilerPluginConfig() {
   val compileTimeErrors: Boolean = config.getBoolean("compile-time-errors")
   val modelFile: String = config.getString("model-file")
 
-  def getPlays = this.crom.get.fills
+  def getPlays: List[(String, String)] = this.crom.get.fills
 
   def settings: String = s"\tcompile-time-errors: $compileTimeErrors\n\tmodel-file: $modelFile"
 
