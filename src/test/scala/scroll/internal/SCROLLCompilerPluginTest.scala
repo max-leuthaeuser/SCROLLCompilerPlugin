@@ -122,5 +122,21 @@ class SCROLLCompilerPluginTest extends WordSpec with Matchers {
         }
       }
     }
+
+    "handle unkown dynamic extension" in {
+      val _ = new Compartment {
+
+        case class UnkownPlayer()
+
+        val p = UnkownPlayer()
+        val r = SomeRole("r")
+
+        val c = p play r
+
+        //an[RuntimeException] should be thrownBy {
+        val _: String = c.bla("param")
+        //}
+      }
+    }
   }
 }

@@ -138,10 +138,18 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
     matchName && matchParamCount && matchArgTypes
   }
 
-  private def hasBehavior(pt: String, m: String, args: Seq[Type]): List[String] =
-    (getRoles(pt).map(r => playerMapping(r)) :+ playerMapping(pt)).collect {
+  private def hasBehavior(pt: String, m: String, args: Seq[Type]): List[String] = {
+    val p = playerMapping.get(pt) match {
+      case Some(player) => List(player)
+      case None =>
+        showMessage(NoPosition, s"No fulfillment relation found in '${config.modelFile}' for '$pt'!")
+        List.empty[ClassDef]
+    }
+
+    (getRoles(pt).map(r => playerMapping(r)) ++ p).collect {
       case cl if cl.symbol.typeSignature.members.exists(matchMethod(_, m, args)) => cl.name.decode.toString
     }
+  }
 
   private def getRoles(p: String): List[String] =
     config.getPlays.flatMap {
@@ -155,8 +163,10 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
   private def prettyPrintFills(): String =
     config.getPlays.map(p => s"- '${p._1}' -> '${p._2}'").mkString("\t", "\n\t", "")
 
-  private def prettyPrintFills(p: String): String =
-    getRoles(p).filter(_ != p).map(d => s"- '$p' -> '$d'").mkString("\n\t\t")
+  private def prettyPrintFills(p: String): String = getRoles(p).filter(_ != p) match {
+    case Nil => s"For '$p' no dynamic extensions are specified in '${config.modelFile}'."
+    case list => s"For '$p' the following dynamic extensions are specified in '${config.modelFile}':\n\t\t" + list.map(d => s"- '$p' -> '$d'").mkString("\n\t\t")
+  }
 
   private def prettyPrintExtensions(m: Map[String, List[AppliedDynExt]]): String =
     m.map {
@@ -182,7 +192,7 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
     val bList = hasBehavior(pt, b, args).distinct
     val hasB = bList.nonEmpty
 
-    val outA = s"$dyn as '$b${prettyPrintArgs(args)}' detected on: '$pt'.\n\tFor '$pt' the following dynamic extensions are specified in '${config.modelFile}':\n\t\t${prettyPrintFills(pt)}"
+    val outA = s"$dyn as '$b${prettyPrintArgs(args)}' detected on: '$pt'.\n\t${prettyPrintFills(pt)}"
     val out = hasB match {
       case true =>
         val fills = getRoles(pt).filter(_ != pt).diff(bList)
