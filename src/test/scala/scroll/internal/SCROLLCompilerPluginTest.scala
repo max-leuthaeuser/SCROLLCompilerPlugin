@@ -4,11 +4,11 @@ import org.scalatest.{Matchers, WordSpec}
 
 class SCROLLCompilerPluginTest extends WordSpec with Matchers {
 
-  case class SomePlayer() {
+  case class SomePlayer(name: String) {
     def hello(): String = "Hello"
   }
 
-  case class SomeRole() {
+  case class SomeRole(name: String) {
     val value: Int = 0
 
     def world(): String = "World"
@@ -22,8 +22,8 @@ class SCROLLCompilerPluginTest extends WordSpec with Matchers {
     "detect applyDynamic with arg" in {
       val _ = new Compartment {
 
-        val p = SomePlayer()
-        val r = SomeRole()
+        val p = SomePlayer("p")
+        val r = SomeRole("r")
 
         val c = p play r
 
@@ -34,8 +34,8 @@ class SCROLLCompilerPluginTest extends WordSpec with Matchers {
     "detect applyDynamic" in {
       val _ = new Compartment {
 
-        val p = SomePlayer()
-        val r = SomeRole()
+        val p = SomePlayer("p")
+        val r = SomeRole("r")
 
         val c = p play r
 
@@ -46,8 +46,8 @@ class SCROLLCompilerPluginTest extends WordSpec with Matchers {
     "detect applyDynamic and detect non-existing behavior" in {
       val _ = new Compartment {
 
-        val p = SomePlayer()
-        val r = SomeRole()
+        val p = SomePlayer("p")
+        val r = SomeRole("r")
 
         val c = p play r
 
@@ -60,8 +60,8 @@ class SCROLLCompilerPluginTest extends WordSpec with Matchers {
     "detect applyDynamicNamed" in {
       val _ = new Compartment {
 
-        val p = SomePlayer()
-        val r = SomeRole()
+        val p = SomePlayer("p")
+        val r = SomeRole("r")
 
         val c = p play r
 
@@ -72,8 +72,8 @@ class SCROLLCompilerPluginTest extends WordSpec with Matchers {
     "detect selectDynamic" in {
       val _ = new Compartment {
 
-        val p = SomePlayer()
-        val r = SomeRole()
+        val p = SomePlayer("p")
+        val r = SomeRole("r")
 
         val c = p play r
 
@@ -84,12 +84,42 @@ class SCROLLCompilerPluginTest extends WordSpec with Matchers {
     "detect updateDynamic" in {
       val _ = new Compartment {
 
-        val p = SomePlayer()
-        val r = SomeRole()
+        val p = SomePlayer("p")
+        val r = SomeRole("r")
 
         val c = p play r
 
         c.value = 10
+      }
+    }
+
+    "detect transfer to" in {
+      val _ = new Compartment {
+
+        val p1 = SomePlayer("p1")
+        val p2 = SomePlayer("p2")
+        val r = SomeRole("r")
+
+        p1 play r
+
+        p1 transfer r to p2
+
+        val _: String = +p2 hello()
+      }
+    }
+
+    "detect drop" in {
+      val _ = new Compartment {
+
+        val p = SomePlayer("p")
+        val r = SomeRole("r")
+
+        val c = p play r
+        p drop r
+
+        an[RuntimeException] should be thrownBy {
+          val _: String = c.bla("param")
+        }
       }
     }
   }

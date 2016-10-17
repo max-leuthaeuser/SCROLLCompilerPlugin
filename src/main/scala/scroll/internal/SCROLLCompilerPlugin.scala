@@ -28,6 +28,8 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
   private val ApplyDynamicNamed = TermName("applyDynamicNamed")
   private val Wrapped = TermName("wrapped")
   private val Play = TermName("play")
+  private val Transfer = TermName("transfer")
+  private val Drop = TermName("drop")
 
   private val nameMapping = mutable.Map.empty[String, String]
 
@@ -35,14 +37,28 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
 
   private val loggedDynamics = mutable.ArrayBuffer.empty[LoggedDynamic]
 
-  private case class Plays(pos: Position, player: String, dynExt: String) {
+  private sealed trait DynExtType
+
+  private case object PlayExt extends DynExtType {
+    override def toString: String = Play.toString
+  }
+
+  private case object TransferExt extends DynExtType {
+    override def toString: String = Transfer.toString
+  }
+
+  private case object DropExt extends DynExtType {
+    override def toString: String = Drop.toString
+  }
+
+  private case class AppliedDynExt(t: DynExtType, pos: Position, player: String, dynExt: String) {
     override def toString: String = pos.source.toString() match {
-      case s if s.length >= 30 => s"[line:${pos.line}|col:${pos.column}] at source '${s.substring(0, 19)}.../${pos.source.file.name}'"
-      case s => s"[line:${pos.line}|col:${pos.column}] at source '$s'"
+      case s if s.length >= 30 => s"$t: [line:${pos.line}|col:${pos.column}] at source '${s.substring(0, 19)}.../${pos.source.file.name}'"
+      case s => s"$t: [line:${pos.line}|col:${pos.column}] at source '$s'"
     }
   }
 
-  private val plays = mutable.ArrayBuffer.empty[Plays]
+  private val appliedDynExts = mutable.ArrayBuffer.empty[AppliedDynExt]
 
   private val playerMapping = mutable.Map.empty[String, ClassDef]
 
@@ -78,12 +94,21 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
   }
 
   private def collectDyns(tree: Tree): Unit = tree match {
-    // TODO: find transfer, drop dynamic extension
     // find all plays:
-    case a@Apply(Apply(TypeApply(Select(t, dyn), _), List(name)), args) if dyn == Play =>
+    case Apply(Apply(TypeApply(Select(t, dyn), _), _), args) if dyn == Play =>
       val TypeRef(_, _, ttp) = t.tpe
       val TypeRef(_, _, ttr) = args.head.tpe
-      plays.append(Plays(t.pos, ReflectiveHelper.simpleName(ttp.head.toString), ReflectiveHelper.simpleName(ttr.head.toString)))
+      appliedDynExts.append(AppliedDynExt(PlayExt, t.pos, ReflectiveHelper.simpleName(ttp.head.toString), ReflectiveHelper.simpleName(ttr.head.toString)))
+    // find all transfer to:
+    case Apply(Apply(TypeApply(Select(Apply(Apply(TypeApply(Select(_, dyn), _), List(role)), _), TermName("to")), _), List(to)), _) if dyn == Transfer =>
+      val t = to.tpe
+      val r = role.tpe
+      appliedDynExts.append(AppliedDynExt(TransferExt, to.pos, ReflectiveHelper.simpleName(t.toString), ReflectiveHelper.simpleName(r.toString)))
+    // find all drops:
+    case Apply(Apply(TypeApply(Select(t, dyn), _), _), args) if dyn == Drop =>
+      val TypeRef(_, _, ttp) = t.tpe
+      val TypeRef(_, _, ttr) = args.head.tpe
+      appliedDynExts.append(AppliedDynExt(DropExt, t.pos, ReflectiveHelper.simpleName(ttp.head.toString), ReflectiveHelper.simpleName(ttr.head.toString)))
     // find all player classes:
     case c@ClassDef(_, name, _, _) =>
       val n = name.decode.toString
@@ -133,9 +158,9 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
   private def prettyPrintFills(p: String): String =
     getRoles(p).filter(_ != p).map(d => s"- '$p' -> '$d'").mkString("\n\t\t")
 
-  private def prettyPrintExtensions(m: Map[String, List[Plays]]): String =
+  private def prettyPrintExtensions(m: Map[String, List[AppliedDynExt]]): String =
     m.map {
-      case (k, v) if v.nonEmpty => s"- '$k' maybe bound at:\n${v.mkString("\t\t\t", "\n\t\t\t", "")}"
+      case (k, v) if v.nonEmpty => s"- '$k' may be acquired/dropped as correct dynamic extension at:\n${v.mkString("\t\t\t", "\n\t\t\t", "")}"
       case (k, v) => s"- '$k'"
     }.mkString("\t", "\n\t\t", "")
 
@@ -144,8 +169,8 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
     case false => args.mkString("(", ", ", ")")
   }
 
-  private def hasPlays(player: String, dynExt: String): List[Plays] =
-    plays.filter(p => (p.player == player && p.dynExt == dynExt) || (p.player == dynExt && p.dynExt == player)).toList
+  private def hasPlays(player: String, dynExt: String): List[AppliedDynExt] =
+    appliedDynExts.filter(p => (p.player == player && p.dynExt == dynExt) || (p.player == dynExt && p.dynExt == player)).toList
 
   private def printLoggedDynamics(loggedDynamic: LoggedDynamic): Unit = {
     val LoggedDynamic(t, dyn, name, args) = loggedDynamic

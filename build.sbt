@@ -9,6 +9,7 @@ scalacOptions := Seq(
   "-unchecked",
   "-deprecation",
   "-feature",
+  "-language:reflectiveCalls",
   "-target:jvm-1.8",
   "-encoding", "utf8",
   "-Xlint",
