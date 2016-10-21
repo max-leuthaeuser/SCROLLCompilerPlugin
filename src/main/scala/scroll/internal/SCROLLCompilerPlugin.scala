@@ -31,6 +31,7 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
   private val Wrapped = TermName("wrapped")
   private val Play = TermName("play")
   private val Transfer = TermName("transfer")
+  private val To = TermName("to")
   private val Drop = TermName("drop")
 
   private val nameMapping = mutable.Map.empty[String, String]
@@ -97,17 +98,17 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
 
   private def collectDyns(tree: Tree): Unit = tree match {
     // find all plays:
-    case Apply(Apply(TypeApply(Select(t, dyn), _), _), args) if dyn == Play =>
+    case Apply(Apply(TypeApply(Select(t, Play), _), _), args) =>
       val TypeRef(_, _, ttp) = t.tpe
       val TypeRef(_, _, ttr) = args.head.tpe
       appliedDynExts.append(AppliedDynExt(PlayExt, t.pos, ReflectiveHelper.simpleName(ttp.head.toString), ReflectiveHelper.simpleName(ttr.head.toString)))
     // find all transfer to:
-    case Apply(Apply(TypeApply(Select(Apply(Apply(TypeApply(Select(_, dyn), _), List(role)), _), TermName("to")), _), List(to)), _) if dyn == Transfer =>
+    case Apply(Apply(TypeApply(Select(Apply(Apply(TypeApply(Select(_, Transfer), _), List(role)), _), To), _), List(to)), _) =>
       val t = to.tpe
       val r = role.tpe
       appliedDynExts.append(AppliedDynExt(TransferExt, to.pos, ReflectiveHelper.simpleName(t.toString), ReflectiveHelper.simpleName(r.toString)))
     // find all drops:
-    case Apply(Apply(TypeApply(Select(t, dyn), _), _), args) if dyn == Drop =>
+    case Apply(Apply(TypeApply(Select(t, Drop), _), _), args) =>
       val TypeRef(_, _, ttp) = t.tpe
       val TypeRef(_, _, ttr) = args.head.tpe
       appliedDynExts.append(AppliedDynExt(DropExt, t.pos, ReflectiveHelper.simpleName(ttp.head.toString), ReflectiveHelper.simpleName(ttr.head.toString)))
@@ -121,10 +122,10 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
     case ValDef(_, name, _, Literal(Constant(v))) =>
       nameMapping(name.decoded) = sanitizeName(v.toString)
     // find all calls to Dynamic Trait:
-    case Apply(Select(t, dyn), List(name)) if dyn == UpdateDynamic =>
-      loggedDynamics.append(LoggedDynamic(t, dyn, name, List.empty))
-    case Apply(TypeApply(Select(t, dyn), _), List(name)) if dyn == SelectDynamic =>
-      loggedDynamics.append(LoggedDynamic(t, dyn, name, List.empty))
+    case Apply(Select(t, UpdateDynamic), List(name)) =>
+      loggedDynamics.append(LoggedDynamic(t, UpdateDynamic, name, List.empty))
+    case Apply(TypeApply(Select(t, SelectDynamic), _), List(name)) =>
+      loggedDynamics.append(LoggedDynamic(t, SelectDynamic, name, List.empty))
     case Apply(Apply(TypeApply(Select(t, dyn), _), List(name)), args) if dyn == ApplyDynamicNamed || dyn == ApplyDynamic =>
       loggedDynamics.append(LoggedDynamic(t, dyn, name, args.map(_.tpe)))
     case _ => ()
