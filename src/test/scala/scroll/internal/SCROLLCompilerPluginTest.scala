@@ -123,7 +123,7 @@ class SCROLLCompilerPluginTest extends WordSpec with Matchers {
       }
     }
 
-    "handle unkown player" in {
+    "handle unknown player" in {
       val _ = new Compartment {
 
         case class UnkownPlayer()
@@ -137,7 +137,7 @@ class SCROLLCompilerPluginTest extends WordSpec with Matchers {
       }
     }
 
-    "handle unkown dynamic extension" in {
+    "handle unknown dynamic extension" in {
       val _ = new Compartment {
 
         case class UnkownExtension()
