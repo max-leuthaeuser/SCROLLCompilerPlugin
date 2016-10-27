@@ -14,6 +14,7 @@ import scroll.internal.formal.FormalCROM
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
+import scala.util.{Success, Try}
 
 class SCROLLCompilerPluginConfig() {
   private val NATURALTYPE = "NaturalType"
@@ -27,12 +28,24 @@ class SCROLLCompilerPluginConfig() {
   protected var crom = Option.empty[FormalCROM[String, String, String, String]]
 
   private val config = ConfigFactory.load()
-  val compileTimeErrors: Boolean = config.getBoolean("compile-time-errors")
-  val modelFile: String = config.getString("model-file")
+  val compileTimeErrors: Boolean = Try(config.getBoolean("compile-time-errors")) match {
+    case Success(v) => v
+    case _ => false
+  }
+  val modelFile: String = Try(config.getString("model-file")) match {
+    case Success(f) => f
+    case _ => ""
+  }
 
-  def getPlays: List[(String, String)] = this.crom.get.fills
+  def getPlays: List[(String, String)] = crom match {
+    case Some(c) => c.fills
+    case None => List.empty
+  }
 
-  def settings: String = s"\tcompile-time-errors: $compileTimeErrors\n\tmodel-file: $modelFile"
+  def settings: String = modelFile.isEmpty match {
+    case true => s"\tcompile-time-errors: $compileTimeErrors\n\tNo model file"
+    case false => s"\tcompile-time-errors: $compileTimeErrors\n\tmodel-file: $modelFile"
+  }
 
   withModel(modelFile)
 
@@ -74,8 +87,11 @@ class SCROLLCompilerPluginConfig() {
     * @param path the file path to load a CROM from
     */
   def withModel(path: String): Unit = {
-    require(null != path && path.nonEmpty)
-    crom = Option(construct())
+    require(null != path)
+    modelFile.isEmpty match {
+      case true => crom = Option.empty
+      case false => crom = Option(construct())
+    }
   }
 
   /**

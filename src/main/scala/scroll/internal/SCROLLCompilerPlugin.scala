@@ -71,8 +71,6 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
 
   inform(s"Running the SCROLLCompilerPlugin with settings:\n${config.settings}")
 
-  inform(s"Model '${config.modelFile}' was loaded.")
-
   inform(s"The following fills relations are specified:\n${prettyPrintFills()}")
 
   def newPhase(prev: Phase): Phase = new TraverserPhase(prev)
@@ -115,9 +113,7 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
     // find all player classes:
     case c@ClassDef(_, name, _, _) =>
       val n = name.decode.toString
-      if (availablePlayer.contains(n)) {
-        playerMapping(n) = c
-      }
+      playerMapping(n) = c
     // find all player behavior:
     case ValDef(_, name, _, Literal(Constant(v))) =>
       nameMapping(name.decoded) = sanitizeName(v.toString)
@@ -144,9 +140,7 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
   private def hasBehavior(pt: String, m: String, args: Seq[Type]): List[String] = {
     val p = playerMapping.get(pt) match {
       case Some(player) => List(player)
-      case None =>
-        showMessage(NoPosition, s"No fulfillment relation found in '${config.modelFile}' for '$pt'!")
-        List.empty[ClassDef]
+      case None => List.empty[ClassDef]
     }
 
     (getRoles(pt).map(r => playerMapping(r)) ++ p).collect {
@@ -155,20 +149,25 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
   }
 
   private def getRoles(p: String): List[String] =
-    config.getPlays.flatMap {
-      case (e, rl) if e == p => List(e, rl)
-      case (pl, e) if e == p => getRoles(pl)
-      case _ => List()
-    }.distinct
+    (appliedDynExts.collect {
+      case AppliedDynExt(et, _, pl, e) if (et == PlayExt || et == TransferExt) && pl == p => e
+    }.toList ++
+      config.getPlays.flatMap {
+        case (e, rl) if e == p => List(e, rl)
+        case (pl, e) if e == p => getRoles(pl)
+        case _ => List()
+      }).distinct
 
   private def sanitizeName(e: String): String = e.replaceAll("\"", "")
 
-  private def prettyPrintFills(): String =
-    config.getPlays.map(p => s"- '${p._1}' -> '${p._2}'").mkString("\t", "\n\t", "")
+  private def prettyPrintFills(): String = config.getPlays match {
+    case Nil => "\tNone found."
+    case list => list.map(p => s"- '${p._1}' -> '${p._2}'").mkString("\t", "\n\t", "")
+  }
 
   private def prettyPrintFills(p: String): String = getRoles(p).filter(_ != p) match {
-    case Nil => s"For '$p' no dynamic extensions are specified in '${config.modelFile}'."
-    case list => s"For '$p' the following dynamic extensions are specified in '${config.modelFile}':\n\t\t" + list.map(d => s"- '$p' -> '$d'").mkString("\n\t\t")
+    case Nil => s"For '$p' no dynamic extensions are specified."
+    case list => s"For '$p' the following dynamic extensions are specified:\n\t\t" + list.map(d => s"- '$p' -> '$d'").mkString("\n\t\t")
   }
 
   private def prettyPrintExtensions(m: Map[String, List[AppliedDynExt]]): String =
@@ -211,6 +210,6 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
     }
     showMessage(t.pos, out)
     if (!hasB)
-      showMessage(name.pos, s"Neither '$pt', nor its dynamic extensions specified in '${config.modelFile}' offer the called behavior!\n\tThis may indicate a programming error!")
+      showMessage(name.pos, s"Neither '$pt', nor its dynamic extensions offer the called behavior!\n\tThis may indicate a programming error!")
   }
 }
