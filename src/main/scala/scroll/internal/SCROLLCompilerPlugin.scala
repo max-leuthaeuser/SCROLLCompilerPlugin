@@ -112,14 +112,11 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
       val TypeRef(_, _, ttr) = args.head.tpe
       appliedDynExts.append(AppliedDynExt(DropExt, t.pos, ReflectiveHelper.simpleName(ttp.head.toString), ReflectiveHelper.simpleName(ttr.head.toString)))
     // find all player classes:
-    case c@ClassDef(_, name, _, _) =>
-      val n = name.decode.toString
-      if (!n.contains(TypeCreator) && !n.contains(Anon)) {
-        playerMapping(n) = c
-      }
+    case c@ClassDef(_, name, _, _) if !name.decode.contains(TypeCreator) && !name.decode.contains(Anon) =>
+      playerMapping(name.decode) = c
     // find all player behavior:
     case ValDef(_, name, _, Literal(Constant(v))) =>
-      nameMapping(name.decoded) = sanitizeName(v.toString)
+      nameMapping(name.decode) = sanitizeName(v.toString)
     // find all calls to Dynamic Trait:
     case Apply(Select(t, UpdateDynamic), List(name)) =>
       loggedDynamics.append(LoggedDynamic(t, UpdateDynamic, name, List.empty))
@@ -147,7 +144,7 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
     }
 
     (getRoles(pt).map(r => playerMapping(r)) ++ p).collect {
-      case cl if cl.symbol.typeSignature.members.exists(matchMethod(_, m, args)) => cl.name.decode.toString
+      case cl if cl.symbol.typeSignature.members.exists(matchMethod(_, m, args)) => cl.name.decode
     }
   }
 
@@ -180,9 +177,9 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
       case (k, v) => s"- '$k'"
     }.mkString("\t", "\n\t\t", "")
 
-  private def prettyPrintArgs(args: Seq[Type]): String = args.isEmpty match {
-    case true => ""
-    case false => args.mkString("(", ", ", ")")
+  private def prettyPrintArgs(args: Seq[Type]): String = args match {
+    case Nil => ""
+    case list => list.mkString("(", ", ", ")")
   }
 
   private def hasPlays(player: String, dynExt: String): List[AppliedDynExt] =
