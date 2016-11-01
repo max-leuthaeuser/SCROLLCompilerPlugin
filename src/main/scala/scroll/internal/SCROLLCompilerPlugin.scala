@@ -34,6 +34,9 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
   private val To = TermName("to")
   private val Drop = TermName("drop")
 
+  private val TypeCreator = "$typecreator"
+  private val Anon = "$anon"
+
   private val nameMapping = mutable.Map.empty[String, String]
 
   private case class LoggedDynamic(t: Tree, dyn: Name, name: Tree, args: Seq[Type])
@@ -66,8 +69,6 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
   private val playerMapping = mutable.Map.empty[String, ClassDef]
 
   private val config = new SCROLLCompilerPluginConfig()
-
-  private val availablePlayer = config.getPlays.flatMap { case (a, b) => List(a, b) }.distinct
 
   inform(s"Running the SCROLLCompilerPlugin with settings:\n${config.settings}")
 
@@ -113,7 +114,9 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
     // find all player classes:
     case c@ClassDef(_, name, _, _) =>
       val n = name.decode.toString
-      playerMapping(n) = c
+      if (!n.contains(TypeCreator) && !n.contains(Anon)) {
+        playerMapping(n) = c
+      }
     // find all player behavior:
     case ValDef(_, name, _, Literal(Constant(v))) =>
       nameMapping(name.decoded) = sanitizeName(v.toString)
@@ -151,6 +154,7 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
   private def getRoles(p: String): List[String] =
     (appliedDynExts.collect {
       case AppliedDynExt(et, _, pl, e) if (et == PlayExt || et == TransferExt) && pl == p => e
+      case AppliedDynExt(et, _, pl, e) if (et == PlayExt || et == TransferExt) && e == p => pl
     }.toList ++
       config.getPlays.flatMap {
         case (e, rl) if e == p => List(e, rl)
