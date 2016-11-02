@@ -152,16 +152,18 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
     }
   }
 
-  private def getRoles(p: String): List[String] =
-    (appliedDynExts.collect {
+  private def getRoles(p: String): List[String] = {
+    def rec_getRoles(rp: String): List[String] = config.getPlays.flatMap {
+      case (e, rl) if e == rp => List(e, rl)
+      case (pl, e) if e == rp => rec_getRoles(pl)
+      case _ => List()
+    }
+
+    (rec_getRoles(p) ++ appliedDynExts.collect {
       case AppliedDynExt(et, _, pl, e) if (et == PlayExt || et == TransferExt) && pl == p => e
       case AppliedDynExt(et, _, pl, e) if (et == PlayExt || et == TransferExt) && e == p => pl
-    }.toList ++
-      config.getPlays.flatMap {
-        case (e, rl) if e == p => List(e, rl)
-        case (pl, e) if e == p => getRoles(pl)
-        case _ => List()
-      }).distinct
+    }).distinct
+  }
 
   private def sanitizeName(e: String): String = e.replaceAll("\"", "")
 
