@@ -1,6 +1,6 @@
 package scroll.internal
 
-import scroll.internal.util.ReflectiveHelper
+import scroll.internal.util.ReflectiveHelper.simpleName
 
 import scala.tools.nsc
 import nsc.{Global, Phase}
@@ -84,9 +84,13 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
   private def getPlayerType(t: Tree): String =
     t.tpe.declarations.collectFirst {
       case m: MethodSymbol if m.name == Wrapped => m.typeSignatureIn(t.tpe) match {
-        case NullaryMethodType(returnType) => ReflectiveHelper.simpleName(returnType.toString())
+        case NullaryMethodType(returnType) => simpleName(returnType.toString())
       }
-    }.getOrElse("No player found!")
+    }.getOrElse {
+      val s = simpleName(t.tpe.toString())
+      showMessage(t.pos, s"No player for '$s' found!")
+      s
+    }
 
   private class TraverserPhase(prev: Phase) extends StdPhase(prev) {
     def apply(unit: CompilationUnit): Unit = {
@@ -100,17 +104,17 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
     case Apply(Apply(TypeApply(Select(t, Play), _), _), args) =>
       val TypeRef(_, _, ttp) = t.tpe
       val TypeRef(_, _, ttr) = args.head.tpe
-      appliedDynExts.append(AppliedDynExt(PlayExt, t.pos, ReflectiveHelper.simpleName(ttp.head.toString), ReflectiveHelper.simpleName(ttr.head.toString)))
+      appliedDynExts.append(AppliedDynExt(PlayExt, t.pos, simpleName(ttp.head.toString), simpleName(ttr.head.toString)))
     // find all transfer to:
     case Apply(Apply(TypeApply(Select(Apply(Apply(TypeApply(Select(_, Transfer), _), List(role)), _), To), _), List(to)), _) =>
       val t = to.tpe
       val r = role.tpe
-      appliedDynExts.append(AppliedDynExt(TransferExt, to.pos, ReflectiveHelper.simpleName(t.toString), ReflectiveHelper.simpleName(r.toString)))
+      appliedDynExts.append(AppliedDynExt(TransferExt, to.pos, simpleName(t.toString), simpleName(r.toString)))
     // find all drops:
     case Apply(Apply(TypeApply(Select(t, Drop), _), _), args) =>
       val TypeRef(_, _, ttp) = t.tpe
       val TypeRef(_, _, ttr) = args.head.tpe
-      appliedDynExts.append(AppliedDynExt(DropExt, t.pos, ReflectiveHelper.simpleName(ttp.head.toString), ReflectiveHelper.simpleName(ttr.head.toString)))
+      appliedDynExts.append(AppliedDynExt(DropExt, t.pos, simpleName(ttp.head.toString), simpleName(ttr.head.toString)))
     // find all player classes:
     case c@ClassDef(_, name, _, _) if !name.decode.contains(TypeCreator) && !name.decode.contains(Anon) =>
       playerMapping(name.decode) = c
