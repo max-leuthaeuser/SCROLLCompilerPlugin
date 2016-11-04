@@ -7,7 +7,7 @@ This project contains a Scala compiler plugin supporting [SCROLL][scroll].
   1. Clone this repo.
   2. You may want to use SBT and run ```gen-idea``` if you are using Intellij IDE (to config see [here][sbt-gen-idea]).
   3. You may want to use SBT and run ```eclipse``` if you are using the Eclipse Scala IDE (to config see [here][gen-eclipse]).
-  4. Invoke ```sbt assembly```. The resulting ```SCROLLCompilerPlugin.jar``` is stored under ```target/scala-2.11/```.
+  4. Invoke ```sbt assembly```. The resulting ```SCROLLCompilerPlugin.jar``` is stored under ```target/scala-2.12/```.
 
 **2. Use the plugin:**
   1. Using Eclipse/Intellij: add ```SCROLLCompilerPlugin-assembly-versionNumber.jar``` to your IDEs Scala compiler plugin config.
