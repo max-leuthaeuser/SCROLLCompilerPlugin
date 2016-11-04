@@ -1,6 +1,6 @@
 name := "SCROLLCompilerPlugin"
-scalaVersion := "2.11.7"
-version := "0.0.3"
+scalaVersion := "2.12.0"
+version := "0.0.4"
 organization := "com.github.max-leuthaeuser"
 
 javacOptions in Compile ++= Seq("-source", "1.8", "-target", "1.8")
@@ -21,10 +21,10 @@ scalacOptions := Seq(
   "-Ywarn-unused-import")
 
 libraryDependencies ++= Seq(
-  ("com.github.max-leuthaeuser" % "scroll_2.11" % "0.9.8").exclude("org.javabits.jgrapht", "jgrapht-core"),
+  ("com.github.max-leuthaeuser" %% "scroll" % "1.0.0").exclude("org.javabits.jgrapht", "jgrapht-core"),
   "com.typesafe" % "config" % "1.3.1",
   "org.scala-lang" % "scala-compiler" % scalaVersion.value,
-  "org.scalatest" %% "scalatest" % "2.2.3" % "test"
+  "org.scalatest" %% "scalatest" % "3.0.0" % "test"
 )
 
 test in assembly := {}
