@@ -21,7 +21,7 @@ scalacOptions := Seq(
   "-Ywarn-unused-import")
 
 libraryDependencies ++= Seq(
-  "com.github.max-leuthaeuser" %% "scroll" % "1.3.0",
+  "com.github.max-leuthaeuser" %% "scroll" % "1.3.1",
   "com.typesafe" % "config" % "1.3.1",
   "org.scala-lang" % "scala-compiler" % scalaVersion.value,
   "org.scalatest" %% "scalatest" % "3.0.0" % "test"
