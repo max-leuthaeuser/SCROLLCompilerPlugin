@@ -1,5 +1,5 @@
 name := "SCROLLCompilerPlugin"
-scalaVersion := "2.12.3"
+scalaVersion := "2.12.4"
 version := "0.0.4"
 organization := "com.github.max-leuthaeuser"
 
@@ -21,7 +21,7 @@ scalacOptions := Seq(
   "-Ywarn-unused-import")
 
 libraryDependencies ++= Seq(
-  "com.github.max-leuthaeuser" %% "scroll" % "1.3.1",
+  "com.github.max-leuthaeuser" %% "scroll" % "latest.integration",
   "com.typesafe" % "config" % "1.3.1",
   "org.scala-lang" % "scala-compiler" % scalaVersion.value,
   "org.scalatest" %% "scalatest" % "3.0.1" % "test"
@@ -45,13 +45,13 @@ assemblyMergeStrategy in assembly := {
     oldStrategy(x)
 }
 
-scalacOptions in console in Compile <+= (assembly in Compile) map {
+scalacOptions in console in Compile += ((assembly in Compile) map {
   pluginJar => "-Xplugin:" + pluginJar
-}
+}).value
 
-scalacOptions in Test <++= (assembly in Compile) map {
+scalacOptions in Test ++= ((assembly in Compile) map {
   pluginJar => Seq("-Xplugin:" + pluginJar, "-Jdummy=" + pluginJar.lastModified)
-}
+}).value
 
 initialize in Test ~= { _ =>
   System.setProperty("config.file", "src/test/resources/application.conf")
@@ -59,7 +59,7 @@ initialize in Test ~= { _ =>
 
 artifact in(Compile, assembly) := {
   val art = (artifact in(Compile, assembly)).value
-  art.copy(`classifier` = Some("assembly"))
+  art.withName("assembly")
 }
 
 addArtifact(artifact in(Compile, assembly), assembly)
