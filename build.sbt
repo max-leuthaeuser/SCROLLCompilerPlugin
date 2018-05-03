@@ -1,5 +1,5 @@
 name := "SCROLLCompilerPlugin"
-scalaVersion := "2.12.4"
+scalaVersion := "2.12.6"
 version := "0.0.4"
 organization := "com.github.max-leuthaeuser"
 
@@ -22,9 +22,9 @@ scalacOptions := Seq(
 
 libraryDependencies ++= Seq(
   "com.github.max-leuthaeuser" %% "scroll" % "latest.integration",
-  "com.typesafe" % "config" % "1.3.1",
+  "com.typesafe" % "config" % "1.3.3",
   "org.scala-lang" % "scala-compiler" % scalaVersion.value,
-  "org.scalatest" %% "scalatest" % "3.0.1" % "test"
+  "org.scalatest" %% "scalatest" % "3.0.5" % "test"
 )
 
 test in assembly := {}
