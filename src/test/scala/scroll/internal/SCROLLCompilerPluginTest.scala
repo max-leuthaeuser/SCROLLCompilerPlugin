@@ -1,8 +1,10 @@
 package scroll.internal
 
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
+import scroll.Compartment
 
-class SCROLLCompilerPluginTest extends WordSpec with Matchers {
+class SCROLLCompilerPluginTest extends AnyWordSpec with Matchers {
 
   case class SomePlayer(name: String) {
     def hello(): String = "Hello"
@@ -98,13 +100,13 @@ class SCROLLCompilerPluginTest extends WordSpec with Matchers {
 
         val p1 = SomePlayer("p1")
         val p2 = SomePlayer("p2")
-        val r = SomeRole("r")
+        val r  = SomeRole("r")
 
         p1 play r
 
         p1 transfer r to p2
 
-        val _: String = +p2 hello()
+        val _: String = (+p2).world()
       }
     }
 
