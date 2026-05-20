@@ -1,6 +1,6 @@
 package scroll.internal
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters.*
 import com.typesafe.config.ConfigFactory
 import org.eclipse.emf.common.util.URI
 import org.eclipse.emf.ecore.impl.DynamicEObjectImpl
@@ -25,7 +25,7 @@ class SCROLLCompilerPluginConfig() {
   private val FULFILLMENT = "Fulfillment"
   private val PART = "Part"
   private val validTypes = Set(NATURALTYPE, ROLEGROUP, ROLETYPE, COMPARTMENTTYPE, RELATIONSHIP, FULFILLMENT, PART)
-  protected var crom = Option.empty[FormalCROM[String, String, String, String]]
+  protected var crom: Option[FormalCROM[String, String, String, String]] = None
 
   private val config = ConfigFactory.load()
   val compileTimeErrors: Boolean = Try(config.getBoolean("compile-time-errors")) match {
@@ -56,7 +56,9 @@ class SCROLLCompilerPluginConfig() {
     val extendedMetaData = new BasicExtendedMetaData(rs.getPackageRegistry)
     rs.getLoadOptions.put(XMLResource.OPTION_EXTENDED_META_DATA, extendedMetaData)
 
-    val r = rs.getResource(URI.createURI("archive:" + getClass.getClassLoader.getResource("crom_l1_composed.ecore").getPath, true), true)
+    val metaModelUrl = getClass.getClassLoader.getResource("crom_l1_composed.ecore")
+    val metaModelUri = URI.createURI(metaModelUrl.toExternalForm)
+    val r = rs.getResource(metaModelUri, true)
     val eObject = r.getContents.get(0)
     eObject match {
       case p: EPackage => val _ = rs.getPackageRegistry.put(p.getNsURI, p)
@@ -106,15 +108,15 @@ class SCROLLCompilerPluginConfig() {
     case None => "-"
   }
 
-  private def constructNT[NT >: Null](elem: EObject): NT = getInstanceName(elem).asInstanceOf[NT]
+  private def constructNT[NT >: Null <: AnyRef](elem: EObject): NT = getInstanceName(elem).asInstanceOf[NT]
 
-  private def constructRT[RT >: Null](elem: EObject): RT = getInstanceName(elem).asInstanceOf[RT]
+  private def constructRT[RT >: Null <: AnyRef](elem: EObject): RT = getInstanceName(elem).asInstanceOf[RT]
 
-  private def constructCT[CT >: Null](elem: EObject): CT = getInstanceName(elem).asInstanceOf[CT]
+  private def constructCT[CT >: Null <: AnyRef](elem: EObject): CT = getInstanceName(elem).asInstanceOf[CT]
 
-  private def constructRST[RST >: Null](elem: EObject): RST = getInstanceName(elem).asInstanceOf[RST]
+  private def constructRST[RST >: Null <: AnyRef](elem: EObject): RST = getInstanceName(elem).asInstanceOf[RST]
 
-  private def constructFills[NT >: Null, RT >: Null](elem: EObject): List[(NT, RT)] = {
+  private def constructFills[NT >: Null <: AnyRef, RT >: Null <: AnyRef](elem: EObject): List[(NT, RT)] = {
     val obj = elem.asInstanceOf[DynamicEObjectImpl]
     val filler = obj.dynamicGet(1).asInstanceOf[DynamicEObjectImpl].dynamicGet(0).asInstanceOf[NT]
     val filledObj = obj.dynamicGet(0).asInstanceOf[DynamicEObjectImpl]
@@ -133,13 +135,13 @@ class SCROLLCompilerPluginConfig() {
     case _ => List()
   })
 
-  private def constructParts[CT >: Null, RT >: Null](elem: EObject): (CT, List[RT]) = {
+  private def constructParts[CT >: Null <: AnyRef, RT >: Null <: AnyRef](elem: EObject): (CT, List[RT]) = {
     val ct = getInstanceName(elem.eContainer()).asInstanceOf[CT]
     val roles = collectRoles(elem).map(r => getInstanceName(r).asInstanceOf[RT])
     (ct, roles)
   }
 
-  private def constructRel[RST >: Null, RT >: Null](elem: EObject): (RST, List[RT]) = {
+  private def constructRel[RST >: Null <: AnyRef, RT >: Null <: AnyRef](elem: EObject): (RST, List[RT]) = {
     val rstName = getInstanceName(elem).asInstanceOf[RST]
     val roles = collectRoles(elem.eContainer())
     val rsts = roles.filter(role => {
@@ -168,7 +170,8 @@ class SCROLLCompilerPluginConfig() {
     }
   }
 
-  private def construct[NT >: Null, RT >: Null, CT >: Null, RST >: Null](): FormalCROM[NT, RT, CT, RST] = {
+  private def construct[NT >: Null <: AnyRef, RT >: Null <: AnyRef, CT >: Null <: AnyRef, RST >: Null <: AnyRef]()
+      : FormalCROM[NT, RT, CT, RST] = {
     val nt = ListBuffer[String]()
     val rt = ListBuffer[String]()
     val ct = ListBuffer[String]()
