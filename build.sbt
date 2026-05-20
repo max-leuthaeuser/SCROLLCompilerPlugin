@@ -1,4 +1,4 @@
-ThisBuild / scalaVersion := "3.8.3"
+ThisBuild / scalaVersion         := "3.8.3"
 ThisBuild / version              := "0.0.5"
 ThisBuild / versionScheme        := Some("semver-spec")
 ThisBuild / organization         := "com.github.max-leuthaeuser"
@@ -34,6 +34,8 @@ ThisBuild / publishTo := {
   else localStaging.value
 }
 
+addCommandAlias("format", ";scalafmtAll;scalafmtSbt")
+
 name := "SCROLLCompilerPlugin"
 
 javacOptions ++= Seq("--release", "11")
@@ -52,9 +54,9 @@ scalacOptions ++= Seq(
 
 libraryDependencies ++= Seq(
   "com.github.max-leuthaeuser" %% "scroll"          % "3.4",
-  "com.typesafe"                 % "config"          % "1.4.3",
-  "org.scala-lang"               %% "scala3-compiler" % scalaVersion.value % "provided",
-  "org.scalatest"                %% "scalatest"       % "3.2.20" % Test
+  "com.typesafe"                % "config"          % "1.4.3",
+  "org.scala-lang"             %% "scala3-compiler" % scalaVersion.value % "provided",
+  "org.scalatest"              %% "scalatest"       % "3.2.20"           % Test
 )
 
 assembly / test := {}
@@ -62,12 +64,12 @@ assembly / test := {}
 assemblyPackageScala / assembleArtifact := false
 
 assemblyMergeStrategy := {
-  case "module-info.class" => MergeStrategy.discard
+  case "module-info.class"                                      => MergeStrategy.discard
   case PathList("META-INF", "versions", _, "module-info.class") => MergeStrategy.discard
   case PathList("META-INF", "versions", _, "OSGI-INF", _)       => MergeStrategy.discard
-  case PathList(ps @ _*) if ps.last.contains(".crom")            => MergeStrategy.discard
-  case PathList(ps @ _*) if ps.last.contains(".ecore")           => MergeStrategy.first
-  case PathList(ps @ _*) if ps.last == "application.conf"      => MergeStrategy.discard
+  case PathList(ps @ _*) if ps.last.contains(".crom")           => MergeStrategy.discard
+  case PathList(ps @ _*) if ps.last.contains(".ecore")          => MergeStrategy.first
+  case PathList(ps @ _*) if ps.last == "application.conf"       => MergeStrategy.discard
   case PathList(ps @ _*) if ps.last == "plugin.properties"      => MergeStrategy.first
   case PathList(ps @ _*) if ps.last == "scalac-plugin.xml"      => MergeStrategy.discard
   case PathList(ps @ _*)

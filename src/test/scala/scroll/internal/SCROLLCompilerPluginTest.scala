@@ -23,18 +23,18 @@ class SCROLLCompilerPluginTest extends AnyFunSpec with Matchers {
   describe("the plugin") {
     it("detects applyDynamic with arg") {
       val _ = new Compartment {
-        val p = SomePlayer("p")
-        val r = SomeRole("r")
-        val c = p play r
+        val p         = SomePlayer("p")
+        val r         = SomeRole("r")
+        val c         = p play r
         val _: String = c.foo("42", 1)
       }
     }
 
     it("detects applyDynamic") {
       val _ = new Compartment {
-        val p = SomePlayer("p")
-        val r = SomeRole("r")
-        val c = p play r
+        val p         = SomePlayer("p")
+        val r         = SomeRole("r")
+        val c         = p play r
         val _: String = c.world()
       }
     }
@@ -52,18 +52,18 @@ class SCROLLCompilerPluginTest extends AnyFunSpec with Matchers {
 
     it("detects applyDynamicNamed") {
       val _ = new Compartment {
-        val p = SomePlayer("p")
-        val r = SomeRole("r")
-        val c = p play r
+        val p         = SomePlayer("p")
+        val r         = SomeRole("r")
+        val c         = p play r
         val _: String = c.bla(param = "!")
       }
     }
 
     it("detects selectDynamic") {
       val _ = new Compartment {
-        val p = SomePlayer("p")
-        val r = SomeRole("r")
-        val c = p play r
+        val p      = SomePlayer("p")
+        val r      = SomeRole("r")
+        val c      = p play r
         val _: Int = c.value
       }
     }
@@ -104,25 +104,25 @@ class SCROLLCompilerPluginTest extends AnyFunSpec with Matchers {
       val _ = new Compartment {
         case class UnkownPlayer()
 
-        val p = UnkownPlayer()
-        val r = SomeRole("r")
-        val c = p play r
+        val p         = UnkownPlayer()
+        val r         = SomeRole("r")
+        val c         = p play r
         val _: String = c.bla("param")
       }
     }
 
     it("matches the README example (seven dynamic-trait warnings at compile time)") {
       val _ = new Compartment {
-        val p = SomePlayer()
-        val r = SomeRole()
-        val c = p play r
+        val p         = SomePlayer()
+        val r         = SomeRole()
+        val c         = p play r
         val _: String = c.foo("42", 1)
       }
 
       val _ = new Compartment {
-        val p = SomePlayer()
-        val r = SomeRole()
-        val c = p play r
+        val p         = SomePlayer()
+        val r         = SomeRole()
+        val c         = p play r
         val _: String = c.world()
       }
 
@@ -136,16 +136,16 @@ class SCROLLCompilerPluginTest extends AnyFunSpec with Matchers {
       }
 
       val _ = new Compartment {
-        val p = SomePlayer()
-        val r = SomeRole()
-        val c = p play r
+        val p         = SomePlayer()
+        val r         = SomeRole()
+        val c         = p play r
         val _: String = c.bla(param = "!")
       }
 
       val _ = new Compartment {
-        val p = SomePlayer()
-        val r = SomeRole()
-        val c = p play r
+        val p      = SomePlayer()
+        val r      = SomeRole()
+        val c      = p play r
         val _: Int = c.value
       }
 
@@ -170,4 +170,5 @@ class SCROLLCompilerPluginTest extends AnyFunSpec with Matchers {
       }
     }
   }
+
 }
