@@ -1,154 +1,179 @@
 package scroll.internal
 
+import dotty.tools.dotc.ast.tpd.*
+import dotty.tools.dotc.core.Constants.Constant
+import dotty.tools.dotc.core.Contexts.*
+import dotty.tools.dotc.core.Decorators.*
+import dotty.tools.dotc.core.Flags
+import dotty.tools.dotc.core.Names.Name
+import dotty.tools.dotc.core.Symbols.*
+import dotty.tools.dotc.core.Types.*
+import dotty.tools.dotc.plugins.{ PluginPhase, StandardPlugin }
+import dotty.tools.dotc.report
+import dotty.tools.dotc.util.SourcePosition
 import scroll.internal.util.ReflectiveHelper.simpleName
 
-import scala.tools.nsc
-import nsc.{Global, Phase}
-import nsc.plugins.{Plugin, PluginComponent}
 import scala.collection.mutable
 
-class SCROLLCompilerPlugin(val global: Global) extends Plugin {
-  val name = "SCROLLCompilerPlugin"
-  val description = "Compiler Plugin to support SCROLL"
-  val components = new SCROLLCompilerPluginComponent(this, global) :: Nil
+class SCROLLCompilerPlugin extends StandardPlugin {
+  val name: String        = "SCROLLCompilerPlugin"
+  val description: String = "Compiler Plugin to support SCROLL"
+
+  override def initialize(options: List[String])(using Context): List[PluginPhase] =
+    DynamicTraitLookupPhase() :: Nil
+
 }
 
-class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends PluginComponent {
+class DynamicTraitLookupPhase extends PluginPhase {
 
-  import global._
-
-  private val r = global.reporter
-
-  val runsAfter = "typer" :: Nil
-  val phaseName = "dynamictraitlookup"
+  override val phaseName: String      = "dynamictraitlookup"
+  override val runsAfter: Set[String] = Set("typer")
 
   private val MAX_LINE_LENGTH = 30
 
-  private val ApplyDynamic = TermName("applyDynamic")
-  private val SelectDynamic = TermName("selectDynamic")
-  private val UpdateDynamic = TermName("updateDynamic")
-  private val ApplyDynamicNamed = TermName("applyDynamicNamed")
-  private val Wrapped = TermName("wrapped")
-  private val Play = TermName("play")
-  private val Transfer = TermName("transfer")
-  private val To = TermName("to")
-  private val Drop = TermName("drop")
+  private val ApplyDynamic      = "applyDynamic"
+  private val SelectDynamic     = "selectDynamic"
+  private val UpdateDynamic     = "updateDynamic"
+  private val ApplyDynamicNamed = "applyDynamicNamed"
+  private val Wrapped           = "wrapped"
+  private val Play              = "play"
+  private val Transfer          = "transfer"
+  private val To                = "to"
+  private val Drop              = "drop"
 
   private val TypeCreator = "$typecreator"
-  private val Anon = "$anon"
+  private val Anon        = "$anon"
 
   private val nameMapping = mutable.Map.empty[String, String]
 
-  private case class LoggedDynamic(t: Tree, dyn: Name, name: Tree, args: Seq[Type])
+  private case class LoggedDynamic(t: Tree, dyn: String, name: Tree, args: Seq[Type])
 
   private val loggedDynamics = mutable.ArrayBuffer.empty[LoggedDynamic]
 
-  private sealed trait DynExtType
+  sealed private trait DynExtType
 
   private case object PlayExt extends DynExtType {
-    override def toString: String = Play.toString
+    override def toString: String = Play
   }
 
   private case object TransferExt extends DynExtType {
-    override def toString: String = Transfer.toString
+    override def toString: String = Transfer
   }
 
   private case object DropExt extends DynExtType {
-    override def toString: String = Drop.toString
+    override def toString: String = Drop
   }
 
-  private case class AppliedDynExt(t: DynExtType, pos: Position, player: String, dynExt: String) {
-    override def toString: String = pos.source.toString() match {
-      case s if s.length >= MAX_LINE_LENGTH => s"$t: [line:${pos.line}|col:${pos.column}] at source '${s.substring(0, 19)}.../${pos.source.file.name}'"
-      case s => s"$t: [line:${pos.line}|col:${pos.column}] at source '$s'"
+  private case class AppliedDynExt(t: DynExtType, pos: SourcePosition, player: String, dynExt: String) {
+
+    override def toString: String = pos.source.toString match {
+      case s if s.length >= MAX_LINE_LENGTH =>
+        s"$t: [line:${pos.line}|col:${pos.column}] at source '${s.substring(0, 19)}.../${pos.source.file.name}'"
+      case s =>
+        s"$t: [line:${pos.line}|col:${pos.column}] at source '$s'"
     }
+
   }
 
   private val appliedDynExts = mutable.ArrayBuffer.empty[AppliedDynExt]
 
-  private val playerMapping = mutable.Map.empty[String, ClassDef]
+  private val playerMapping = mutable.Map.empty[String, Symbol]
 
   private val config = new SCROLLCompilerPluginConfig()
 
-  inform(s"Running the SCROLLCompilerPlugin with settings:\n${config.settings}")
+  private var bootstrapped = false
 
-  inform(s"The following fills relations are specified:\n${prettyPrintFills()}")
+  private def bootstrap()(using Context): Unit =
+    if (!bootstrapped) {
+      bootstrapped = true
+      report.inform(s"Running the SCROLLCompilerPlugin with settings:\n${config.settings}")
+      report.inform(s"The following fills relations are specified:\n${prettyPrintFills()}")
+    }
 
-  def newPhase(prev: Phase): Phase = new TraverserPhase(prev)
+  private def showMessage(pos: SourcePosition, m: String)(using Context): Unit =
+    if (config.compileTimeErrors) {
+      report.error(m, pos)
+    } else {
+      report.warning(m, pos)
+    }
 
-  private def showMessage(pos: Position, m: String): Unit = config.compileTimeErrors match {
-    case true => r.error(pos, m)
-    case false => r.warning(pos, m)
-  }
+  private val WrappedName = "wrapped".toTermName
 
-  private def getPlayerType(t: Tree): String =
-    t.tpe.declarations.collectFirst {
-      case m: MethodSymbol if m.name == Wrapped => m.typeSignatureIn(t.tpe) match {
-        case NullaryMethodType(returnType) => simpleName(returnType.toString())
-      }
-    }.getOrElse {
-      val s = simpleName(t.tpe.toString())
-      showMessage(t.pos, s"No player for '$s' found!")
+  private def getPlayerType(t: Tree)(using Context): String = {
+    val wrapped = t.tpe.member(WrappedName)
+    if (wrapped.exists) {
+      simpleName(wrapped.info.widen.show)
+    } else {
+      val s = simpleName(t.tpe.show)
+      showMessage(t.sourcePos, s"No player for '$s' found!")
       s
     }
-
-  private class TraverserPhase(prev: Phase) extends StdPhase(prev) {
-    def apply(unit: CompilationUnit): Unit = {
-      new ForeachTreeTraverser(collectDyns).traverse(unit.body)
-      loggedDynamics.foreach(printLoggedDynamics)
-    }
   }
 
-  private def collectDyns(tree: Tree): Unit = tree match {
-    // find all plays:
-    case Apply(Apply(TypeApply(Select(t, Play), _), _), args) =>
-      val TypeRef(_, _, ttp) = t.tpe
-      val TypeRef(_, _, ttr) = args.head.tpe
-      appliedDynExts.append(AppliedDynExt(PlayExt, t.pos, simpleName(ttp.head.toString), simpleName(ttr.head.toString)))
-    // find all transfer to:
-    case Apply(Apply(TypeApply(Select(Apply(Apply(TypeApply(Select(_, Transfer), _), List(role)), _), To), _), List(to)), _) =>
-      val t = to.tpe
-      val r = role.tpe
-      appliedDynExts.append(AppliedDynExt(TransferExt, to.pos, simpleName(t.toString), simpleName(r.toString)))
-    // find all drops:
-    case Apply(Apply(TypeApply(Select(t, Drop), _), _), args) =>
-      val TypeRef(_, _, ttp) = t.tpe
-      val TypeRef(_, _, ttr) = args.head.tpe
-      appliedDynExts.append(AppliedDynExt(DropExt, t.pos, simpleName(ttp.head.toString), simpleName(ttr.head.toString)))
-    // find all player classes:
-    case c@ClassDef(_, name, _, _) if !name.decode.contains(TypeCreator) && !name.decode.contains(Anon) =>
-      playerMapping(name.decode) = c
-    // find all player behavior:
-    case ValDef(_, name, _, Literal(Constant(v))) =>
-      nameMapping(name.decode) = sanitizeName(v.toString)
-    // find all calls to Dynamic Trait:
-    case Apply(Select(t, UpdateDynamic), List(name)) =>
-      loggedDynamics.append(LoggedDynamic(t, UpdateDynamic, name, List.empty))
-    case Apply(TypeApply(Select(t, SelectDynamic), _), List(name)) =>
-      loggedDynamics.append(LoggedDynamic(t, SelectDynamic, name, List.empty))
-    case Apply(Apply(TypeApply(Select(t, dyn), _), List(name)), args) if dyn == ApplyDynamicNamed || dyn == ApplyDynamic =>
-      loggedDynamics.append(LoggedDynamic(t, dyn, name, args.map(_.tpe)))
+  private def collectDyns(tree: Tree)(using Context): Unit = tree match {
+    case Apply(TypeApply(Select(qual, tplay), _), role :: Nil) if isTermName(tplay, Play) =>
+      appliedDynExts.append(
+        AppliedDynExt(PlayExt, qual.sourcePos, simpleName(qual.tpe.show), simpleName(role.tpe.show))
+      )
+    case Apply(Select(qual, tplay), role :: Nil) if isTermName(tplay, Play) =>
+      appliedDynExts.append(
+        AppliedDynExt(PlayExt, qual.sourcePos, simpleName(qual.tpe.show), simpleName(role.tpe.show))
+      )
+    case Apply(Select(Apply(Select(Apply(Select(_, transfer), role :: Nil), toe), to :: Nil), _), _)
+        if isTermName(transfer, Transfer) && isTermName(toe, To) =>
+      appliedDynExts.append(
+        AppliedDynExt(TransferExt, to.sourcePos, simpleName(to.tpe.show), simpleName(role.tpe.show))
+      )
+    case Apply(TypeApply(Select(qual, tdrop), _), role :: Nil) if isTermName(tdrop, Drop) =>
+      appliedDynExts.append(
+        AppliedDynExt(DropExt, qual.sourcePos, simpleName(qual.tpe.show), simpleName(role.tpe.show))
+      )
+    case Apply(Select(qual, tdrop), role :: Nil) if isTermName(tdrop, Drop) =>
+      appliedDynExts.append(
+        AppliedDynExt(DropExt, qual.sourcePos, simpleName(qual.tpe.show), simpleName(role.tpe.show))
+      )
+    case td: TypeDef if td.symbol.isClass && !isSyntheticName(td.name) =>
+      playerMapping(td.name.toString) = td.symbol
+    case ValDef(name, _, Literal(Constant(v))) =>
+      nameMapping(name.toString) = sanitizeName(v.toString)
+    case Apply(Select(qual, dyn), name :: Nil) if isTermName(dyn, UpdateDynamic) =>
+      loggedDynamics.append(LoggedDynamic(qual, UpdateDynamic, name, Nil))
+    case Apply(TypeApply(Select(qual, dyn), _), name :: Nil) if isTermName(dyn, SelectDynamic) =>
+      loggedDynamics.append(LoggedDynamic(qual, SelectDynamic, name, Nil))
+    case Apply(Apply(TypeApply(Select(qual, dyn), _), name :: Nil), args)
+        if isTermName(dyn, ApplyDynamicNamed) || isTermName(dyn, ApplyDynamic) =>
+      loggedDynamics.append(LoggedDynamic(qual, dyn.toString, name, args.map(_.tpe)))
     case _ => ()
   }
 
-  private def matchMethod(m: Symbol, name: String, args: Seq[Type]): Boolean = {
-    lazy val matchName = m.name.encodedName.toString == name
-    lazy val params = m.asMethod.paramLists.flatten.map(_.typeSignature)
-    lazy val matchParamCount = params.length == args.size
-    lazy val matchArgTypes = args.zip(params).forall {
-      case (a, p) => a.looselyMatches(p)
-    }
-    matchName && matchParamCount && matchArgTypes
+  private def isTermName(name: Name, expected: String): Boolean =
+    name.toString == expected
+
+  private def isSyntheticName(name: Name): Boolean = {
+    val decoded = name.toString
+    decoded.contains(TypeCreator) || decoded.contains(Anon)
   }
 
-  private def hasBehavior(pt: String, m: String, args: Seq[Type]): List[String] = {
-    val p = playerMapping.get(pt) match {
-      case Some(player) => List(player)
-      case None => List.empty[ClassDef]
-    }
+  private def looselyMatch(arg: Type, param: Type)(using Context): Boolean = {
+    val a = arg.widen.dealias
+    val p = param.widen.dealias
+    a =:= p || a <:< p || p <:< a
+  }
 
-    (getRoles(pt).map(r => playerMapping(r)) ++ p).collect {
-      case cl if cl.symbol.typeSignature.members.exists(matchMethod(_, m, args)) => cl.name.decode
+  private def matchMethod(m: Symbol, name: String, args: Seq[Type])(using Context): Boolean = {
+    val matchName       = m.name.toString == name
+    val params          = m.paramSymss.flatten.map(_.info)
+    val matchParamCount = params.length == args.length
+    val matchArgTypes   = args.zip(params).forall { case (a, p) => looselyMatch(a, p) }
+    matchName && m.is(Flags.Method) && matchParamCount && matchArgTypes
+  }
+
+  private def hasBehavior(pt: String, m: String, args: Seq[Type])(using Context): List[String] = {
+    val players =
+      playerMapping.get(pt).toList ++ getRoles(pt).flatMap(playerMapping.get)
+    players.collect {
+      case sym if sym.info.decls.exists(d => matchMethod(d, m, args)) =>
+        sym.name.toString
     }
   }
 
@@ -156,67 +181,90 @@ class SCROLLCompilerPluginComponent(plugin: Plugin, val global: Global) extends 
     def rec_getRoles(rp: String): List[String] = config.getPlays.flatMap {
       case (e, rl) if e == rp => List(e, rl)
       case (pl, e) if e == rp => rec_getRoles(pl)
-      case _ => List()
+      case _                  => Nil
     }
 
     (rec_getRoles(p) ++ appliedDynExts.collect {
       case AppliedDynExt(et, _, pl, e) if (et == PlayExt || et == TransferExt) && pl == p => e
-      case AppliedDynExt(et, _, pl, e) if (et == PlayExt || et == TransferExt) && e == p => pl
+      case AppliedDynExt(et, _, pl, e) if (et == PlayExt || et == TransferExt) && e == p  => pl
     }).distinct
   }
 
   private def sanitizeName(e: String): String = e.replaceAll("\"", "")
 
   private def prettyPrintFills(): String = config.getPlays match {
-    case Nil => "\tNone found."
+    case Nil  => "\tNone found."
     case list => list.map(p => s"- '${p._1}' -> '${p._2}'").mkString("\t", "\n\t", "")
   }
 
   private def prettyPrintFills(p: String): String = getRoles(p).filter(_ != p) match {
-    case Nil => s"For '$p' no dynamic extensions are specified."
-    case list => s"For '$p' the following dynamic extensions are specified:\n\t\t" + list.map(d => s"- '$p' -> '$d'").mkString("\n\t\t")
+    case Nil =>
+      s"For '$p' no dynamic extensions are specified."
+    case list =>
+      s"For '$p' the following dynamic extensions are specified:\n\t\t" +
+        list.map(d => s"- '$p' -> '$d'").mkString("\n\t\t")
   }
 
   private def prettyPrintExtensions(m: Map[String, List[AppliedDynExt]]): String =
     m.map {
-      case (k, v) if v.nonEmpty => s"- '$k' may be acquired/dropped as correct dynamic extension at:\n${v.mkString("\t\t\t", "\n\t\t\t", "")}"
-      case (k, v) => s"- '$k'"
+      case (k, v) if v.nonEmpty =>
+        s"- '$k' may be acquired/dropped as correct dynamic extension at:\n${v.mkString("\t\t\t", "\n\t\t\t", "")}"
+      case (k, _) => s"- '$k'"
     }.mkString("\t", "\n\t\t", "")
 
   private def prettyPrintArgs(args: Seq[Type]): String = args match {
-    case Nil => ""
+    case Nil  => ""
     case list => list.mkString("(", ", ", ")")
   }
 
   private def hasPlays(player: String, dynExt: String): List[AppliedDynExt] =
-    appliedDynExts.filter(p => (p.player == player && p.dynExt == dynExt) || (p.player == dynExt && p.dynExt == player)).toList
+    appliedDynExts
+      .filter(p => (p.player == player && p.dynExt == dynExt) || (p.player == dynExt && p.dynExt == player))
+      .toList
 
-  private def printLoggedDynamics(loggedDynamic: LoggedDynamic): Unit = {
+  private def printLoggedDynamics(loggedDynamic: LoggedDynamic)(using Context): Unit = {
     val LoggedDynamic(t, dyn, name, args) = loggedDynamic
 
     val pt = getPlayerType(t)
-    val n = sanitizeName(name.toString)
-    val b = nameMapping.getOrElse(n, n)
+    val n  = sanitizeName(name.toString)
+    val b  = nameMapping.getOrElse(n, n)
 
     val bList = hasBehavior(pt, b, args).distinct
-    val hasB = bList.nonEmpty
+    val hasB  = bList.nonEmpty
 
     val outA = s"$dyn as '$b${prettyPrintArgs(args)}' detected on: '$pt'.\n\t${prettyPrintFills(pt)}"
-    val out = hasB match {
+    val out  = hasB match {
       case true =>
-        val fills = getRoles(pt).filter(_ != pt).diff(bList)
-        val extMap = bList.map(e => {
+        val fills  = getRoles(pt).filter(_ != pt).diff(bList)
+        val extMap = bList.map { e =>
           hasPlays(pt, e) match {
-            case Nil => e -> fills.flatMap(el => hasPlays(e, el))
+            case Nil  => e -> fills.flatMap(el => hasPlays(e, el))
             case list => e -> list
           }
-        }).toMap
+        }.toMap
         outA + s"\n\tMake sure at least one of the following dynamic extensions is bound:\n\t${prettyPrintExtensions(extMap)}"
-      case false =>
-        outA
+      case false => outA
     }
-    showMessage(t.pos, out)
-    if (!hasB)
-      showMessage(name.pos, s"Neither '$pt', nor its dynamic extensions offer the called behavior!\n\tThis may indicate a programming error!")
+    showMessage(t.sourcePos, out)
+    if (!hasB) {
+      showMessage(
+        name.sourcePos,
+        s"Neither '$pt', nor its dynamic extensions offer the called behavior!\n\tThis may indicate a programming error!"
+      )
+    }
   }
+
+  override def transformUnit(tree: Tree)(using Context): Tree = {
+    bootstrap()
+    val acc = new TreeAccumulator[Unit] {
+      def apply(x: Unit, t: Tree)(using Context): Unit = {
+        collectDyns(t)
+        foldOver(x, t)
+      }
+    }
+    acc((), tree)
+    loggedDynamics.foreach(printLoggedDynamics)
+    tree
+  }
+
 }

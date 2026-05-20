@@ -1,97 +1,103 @@
+ThisBuild / scalaVersion         := "3.8.3"
+ThisBuild / version              := "0.0.5"
+ThisBuild / versionScheme        := Some("semver-spec")
+ThisBuild / organization         := "com.github.max-leuthaeuser"
+ThisBuild / organizationName     := "SCROLLCompilerPlugin"
+ThisBuild / organizationHomepage := Some(url("https://github.com/max-leuthaeuser/SCROLLCompilerPlugin"))
+ThisBuild / description          := "Scala 3 compiler plugin for SCROLL dynamic trait lookup."
+
+ThisBuild / scmInfo := Some(
+  ScmInfo(
+    url("https://github.com/max-leuthaeuser/SCROLLCompilerPlugin"),
+    "scm:git:github.com/max-leuthaeuser/SCROLLCompilerPlugin.git"
+  )
+)
+
+ThisBuild / homepage := Some(url("https://github.com/max-leuthaeuser/SCROLLCompilerPlugin"))
+ThisBuild / licenses := List("LGPL 3.0 license" -> url("http://www.opensource.org/licenses/lgpl-3.0.html"))
+
+ThisBuild / developers := List(
+  Developer(
+    "max-leuthaeuser",
+    "Max Leuthaeuser",
+    "max.leuthaeuser@tu-dresden.de",
+    url("https://wwwdb.inf.tu-dresden.de/rosi/investigators/doctoral-students/")
+  )
+)
+
+ThisBuild / pomIncludeRepository := { _ => false }
+ThisBuild / publishMavenStyle    := true
+
+ThisBuild / publishTo := {
+  val centralSnapshots = "https://central.sonatype.com/repository/maven-snapshots/"
+  if (isSnapshot.value) Some("central-snapshots" at centralSnapshots)
+  else localStaging.value
+}
+
+addCommandAlias("format", ";scalafmtAll;scalafmtSbt")
+
 name := "SCROLLCompilerPlugin"
-scalaVersion := "2.12.6"
-version := "0.0.4"
-organization := "com.github.max-leuthaeuser"
 
-javacOptions in Compile ++= Seq("-source", "1.8", "-target", "1.8")
+javacOptions ++= Seq("--release", "11")
 
-scalacOptions := Seq(
+scalacOptions ++= Seq(
   "-unchecked",
   "-deprecation",
   "-feature",
   "-language:reflectiveCalls",
-  "-target:jvm-1.8",
-  "-encoding", "utf8",
-  "-Xlint",
-  "-Xlint:-missing-interpolator",
-  "-Yno-adapted-args",
-  "-Ywarn-numeric-widen",
-  "-Ywarn-value-discard",
-  "-Xfuture",
-  "-Ywarn-unused-import")
-
-libraryDependencies ++= Seq(
-  "com.github.max-leuthaeuser" %% "scroll" % "latest.integration",
-  "com.typesafe" % "config" % "1.3.3",
-  "org.scala-lang" % "scala-compiler" % scalaVersion.value,
-  "org.scalatest" %% "scalatest" % "3.0.5" % "test"
+  "-language:implicitConversions",
+  "-language:postfixOps",
+  "-encoding",
+  "utf8",
+  "-Wunused:imports"
 )
 
-test in assembly := {}
+libraryDependencies ++= Seq(
+  "com.github.max-leuthaeuser" %% "scroll"          % "3.4",
+  "com.typesafe"                % "config"          % "1.4.3",
+  "org.scala-lang"             %% "scala3-compiler" % scalaVersion.value % "provided",
+  "org.scalatest"              %% "scalatest"       % "3.2.20"           % Test
+)
 
-assembleArtifact in assemblyPackageScala := false
+assembly / test := {}
 
-assemblyMergeStrategy in assembly := {
-  case PathList(ps@_*) if ps.last.contains(".crom") => MergeStrategy.discard
-  case PathList(ps@_*) if ps.last.contains(".ecore") => MergeStrategy.first
-  case PathList(ps@_*) if ps.last == "application.conf" => MergeStrategy.discard
-  case PathList(ps@_*) if ps.last == "scalac-plugin.xml" => MergeStrategy.first
-  case PathList(ps@_*)
-    if ps.last.endsWith("plugin.xml") ||
-      ps.last.endsWith("properties") ||
-      ps.last.endsWith(".exsd") => MergeStrategy.discard
+assemblyPackageScala / assembleArtifact := false
+
+assemblyMergeStrategy := {
+  case "module-info.class"                                      => MergeStrategy.discard
+  case PathList("META-INF", "versions", _, "module-info.class") => MergeStrategy.discard
+  case PathList("META-INF", "versions", _, "OSGI-INF", _)       => MergeStrategy.discard
+  case PathList(ps @ _*) if ps.last.contains(".crom")           => MergeStrategy.discard
+  case PathList(ps @ _*) if ps.last.contains(".ecore")          => MergeStrategy.first
+  case PathList(ps @ _*) if ps.last == "application.conf"       => MergeStrategy.discard
+  case PathList(ps @ _*) if ps.last == "plugin.properties"      => MergeStrategy.first
+  case PathList(ps @ _*) if ps.last == "scalac-plugin.xml"      => MergeStrategy.discard
+  case PathList(ps @ _*)
+      if ps.last.endsWith("plugin.xml") ||
+        ps.last.endsWith("properties") ||
+        ps.last.endsWith(".exsd") =>
+    MergeStrategy.discard
   case x =>
-    val oldStrategy = (assemblyMergeStrategy in assembly).value
+    val oldStrategy = (assembly / assemblyMergeStrategy).value
     oldStrategy(x)
 }
 
-scalacOptions in console in Compile += ((assembly in Compile) map {
-  pluginJar => "-Xplugin:" + pluginJar
-}).value
+Compile / console / scalacOptions ++= (Compile / assembly).map(pluginJar => Seq("-Xplugin:" + pluginJar)).value
 
-scalacOptions in Test ++= ((assembly in Compile) map {
-  pluginJar => Seq("-Xplugin:" + pluginJar, "-Jdummy=" + pluginJar.lastModified)
-}).value
+Test / scalacOptions ++= (Compile / assembly).map { pluginJar =>
+  Seq("-Xplugin:" + pluginJar, "-Jdummy=" + pluginJar.lastModified)
+}.value
 
-initialize in Test ~= { _ =>
+Test / initialize := {
+  val _ = (Test / initialize).value
   System.setProperty("config.file", "src/test/resources/application.conf")
 }
 
-artifact in(Compile, assembly) := {
-  val art = (artifact in(Compile, assembly)).value
+Compile / assembly / artifact := {
+  val art = (Compile / assembly / artifact).value
   art.withName("assembly")
 }
 
-addArtifact(artifact in(Compile, assembly), assembly)
+addArtifact(Compile / assembly / artifact, assembly)
 
-publishTo := {
-  val nexus = "https://oss.sonatype.org/"
-  if (isSnapshot.value)
-    Some("snapshots" at nexus + "content/repositories/snapshots")
-  else
-    Some("releases" at nexus + "service/local/staging/deploy/maven2")
-}
-publishMavenStyle := true
-publishArtifact in Test := false
-pomIncludeRepository := { _ => false }
-pomExtra :=
-  <url>https://github.com/max-leuthaeuser/SCROLLCompilerPlugin</url>
-    <licenses>
-      <license>
-        <name>LGPL 3.0 license</name>
-        <url>http://www.opensource.org/licenses/lgpl-3.0.html</url>
-        <distribution>repo</distribution>
-      </license>
-    </licenses>
-    <scm>
-      <connection>scm:git:github.com/max-leuthaeuser/SCROLL.git</connection>
-      <developerConnection>scm:git:git@github.com:max-leuthaeuser/SCROLL.git</developerConnection>
-      <url>github.com/max-leuthaeuser/SCROLL</url>
-    </scm>
-    <developers>
-      <developer>
-        <id>max-leuthaeuser</id>
-        <name>Max Leuthaeuser</name>
-        <url>https://wwwdb.inf.tu-dresden.de/rosi/investigators/doctoral-students/</url>
-      </developer>
-    </developers>
+Test / publishArtifact := false
